@@ -1,0 +1,7 @@
+_readme.txt
+bin/*
+output/decoded/*
+output/encoded/*
+output/graphics/*
+output/results.txt
+src/__pycache__/
