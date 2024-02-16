@@ -1,7 +1,11 @@
 _readme.txt
 bin/*
+!bin/.gitkeep
 output/decoded/*
+!output/decoded/.gitkeep
 output/encoded/*
+!output/encoded/.gitkeep
 output/graphics/*
+!output/graphics/.gitkeep
 output/results.txt
 src/__pycache__/
