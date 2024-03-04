@@ -11,7 +11,7 @@ std::string Alphabet(const std::string& str); // return ordered alphabet from th
 std::string Encode(const std::string& key, const std::string& str);
 std::string Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
 std::string EncodeRLE(const std::string& str); // Run-length encoding
-
+std::string EncodeMTF(const std::string& str); // Move-to-front encoding
 
 std::string Alphabet(const std::string& str)
 {
@@ -34,6 +34,8 @@ std::string Encode(const std::string& key, const std::string& str)
 {
     if (key == "RLE") {
         return EncodeRLE(str);
+    } else if (key == "MTF") {
+        return EncodeMTF(str);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
         return "";
@@ -164,3 +166,34 @@ std::string EncodeRLE(const std::string& str)
     return newStr;
 }
 
+std::string EncodeMTF(const std::string& str)
+{
+    std::string alphabet = Alphabet(str);
+    int alphabetLength = alphabet.size();
+
+    std::string encodedArray;
+
+    // write alphabet
+    for (int i = 0; i < alphabetLength; i++) {
+        encodedArray += alphabet[i];
+    }
+    encodedArray += '\n';
+
+    // move-to-front
+    for (int i = 0; i < str.size(); i++) {
+        int index = alphabet.find(str[i]);
+        encodedArray += std::to_string(index) + " ";
+
+        char temp = alphabet[0];
+        for (int j = 1; j <= index; j++) {
+            char temp2 = alphabet[j];
+            alphabet[j] = temp;
+            temp = temp2;
+        }
+        alphabet[0] = temp;
+    }
+
+    return encodedArray;
+}
+
+// END
