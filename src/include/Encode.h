@@ -1,14 +1,68 @@
-#include <iostream>
+#pragma once
+
 #include <string>
 #include <fstream>
+#include <map>
+#include <set> // makes ordered set
+#include <algorithm> // sorting
 
-// realization which can encode all symbols including numbers
-// also with decode possibility
-// but it can't compress more than 9 identical symbols at once
-// (like 10A or 21C, only 1A, 9B, 3C etc.)
-// it also use negative numbers before unique sequences of symbols
-// (like -5ABCDE or -15ABCDEFGIJKLMNOP)
-std::string RLE_encode(std::string str)
+
+std::string Alphabet(const std::string& str); // return ordered alphabet from the string
+std::string Encode(const std::string& key, const std::string& str);
+std::string Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
+std::string EncodeRLE(const std::string& str); // Run-length encoding
+
+
+std::string Alphabet(const std::string& str)
+{
+    const char* charStr = str.c_str();
+    std::set<char> charsSet(charStr, charStr + strlen(charStr));
+
+    char* alphabet = new char[charsSet.size() + 1];
+    int ind = 0;
+    for (char c : charsSet) { 
+        alphabet[ind++] = c;
+    }
+    alphabet[ind] = '\0'; // end of string
+
+    std::sort(alphabet, alphabet + ind);
+
+    return std::string(alphabet);
+}
+
+std::string Encode(const std::string& key, const std::string& str)
+{
+    if (key == "RLE") {
+        return EncodeRLE(str);
+    } else {
+        std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
+        return "";
+    }
+}
+
+std::string Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath)
+{
+    std::ifstream in(inputPath, std::ios::binary);
+    std::ofstream out(outputPath, std::ios::binary);
+
+    std::string inputStr;
+    while(1) {
+        char c = (char)in.get();
+        if (in.eof()) break;
+        inputStr += c;
+    }
+
+    std::string outputStr = Encode(key, inputStr);
+    for(int i = 0; i < outputStr.size(); i++) {
+        out << outputStr[i];
+    }
+
+    in.close();
+    out.close();
+    return outputStr;
+}
+
+std::string EncodeRLE(const std::string& str)
 {
     std::string newStr;
 
@@ -110,45 +164,3 @@ std::string RLE_encode(std::string str)
     return newStr;
 }
 
-int main(int argc, char* argv[])
-{
-    if (argc < 2) {
-        std::cout << "No parameters was given" << std::endl;
-        return 0;
-    }
-    // pass through all given files paths
-    // argv[1] - path to open original file
-    // argv[2] - path to save encoded file
-    // use binary mode to save specific encoding
-    // like "utf-8"
-    std::ifstream in(argv[1], std::ios::binary);
-    std::ofstream out(argv[2], std::ios::binary);
-    if (in.is_open()){
-        std::string content;
-        in.seekg(0, std::ios::end);
-        content.resize(in.tellg());
-        in.seekg(0, std::ios::beg);
-        in.read(&content[0], content.size());
-
-        std::string encodedStr = RLE_encode(content);
-
-        // specific writing for binary files
-        out.write(encodedStr.c_str(), encodedStr.size());
-    } else {
-        out.write(
-            ("Error opening file: " + std::string(argv[1])).c_str(), 
-            ("Error opening file: " + std::string(argv[1])).size());
-    }
-    in.close();
-    out.close();
-
-    // test code
-    /* std::string exStr = "888888888888888888999999888";
-
-    std::string newStr2 = RLE_encode(exStr);
-
-    std::cout << "Original string: " << exStr << std::endl;
-    std::cout << "Encoded string: " << newStr2 << std::endl; */
-
-    return 0;
-}
