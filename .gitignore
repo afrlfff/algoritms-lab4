@@ -1,11 +1,8 @@
-_readme.txt
+.vscode
 bin/*
 !bin/.gitkeep
-output/decoded/*
-!output/decoded/.gitkeep
-output/encoded/*
-!output/encoded/.gitkeep
-output/graphics/*
-!output/graphics/.gitkeep
-output/results.txt
+output/*
+!output/.gitkeep
 src/__pycache__/
+src/*.exe
+src/tempCodeRunnerFile.cpp
