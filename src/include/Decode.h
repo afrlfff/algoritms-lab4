@@ -5,6 +5,7 @@
 std::string DecodeRLE(std::string str);
 std::string Decode(std::string key, std::string str);
 std::string Decode(std::string key, std::string inputPath, std::string outputPath);
+std::string DecodeMTF(const std::string& str);
 
 
 std::string Decode(std::string key, std::string str)
@@ -70,6 +71,38 @@ std::string DecodeRLE(std::string str)
     }
 
     return newStr;
+}
+
+std::string DecodeMTF(const std::string& str)
+{
+    std::string alphabet = "";
+    int i = 0;
+    while (i < str.size()) {
+        if (str[i] == '\n') break;
+        alphabet += str[i++];
+    }
+
+    std::string decodedStr = "";
+    while (i < str.size()) {
+        std::string numberStr = "";
+        while (str[i] != ' ') {
+            numberStr += str[i++];
+        }
+        int index = std::stoi(numberStr);
+        decodedStr += alphabet[index];
+
+        char temp = alphabet[0];
+        for (int j = 1; j <= index; j++) {
+            char temp2 = alphabet[j];
+            alphabet[j] = temp;
+            temp = temp2;
+        }
+        alphabet[0] = temp;
+
+        i++;
+    }
+
+    return decodedStr;
 }
 
 
