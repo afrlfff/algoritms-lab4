@@ -6,31 +6,34 @@
 #include <set> // makes ordered set
 #include <algorithm> // sorting
 
+#include "ReadFileUtf8.h"
+#include "WriteFileUtf8.h"
 
-std::string Alphabet(const std::string& str); // return ordered alphabet from the string
-std::string Encode(const std::string& key, const std::string& str);
-std::string Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
-std::string EncodeRLE(const std::string& str); // Run-length encoding
-std::string EncodeMTF(const std::string& str); // Move-to-front encoding
+std::wstring Alphabet(const std::wstring& str); // return ordered alphabet from the string
+std::wstring Encode(const std::string& key, const std::wstring& str);
+std::wstring Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
+std::wstring EncodeRLE(const std::wstring& str); // Run-length encoding
+std::wstring EncodeMTF(const std::wstring& str); // Move-to-front encoding
 
-std::string Alphabet(const std::string& str)
+
+std::wstring Alphabet(const std::wstring& str)
 {
-    const char* charStr = str.c_str();
-    std::set<char> charsSet(charStr, charStr + strlen(charStr));
+    const wchar_t* charStr = str.c_str();
+    std::set<wchar_t> charsSet(charStr, charStr + wcslen(charStr));
 
-    char* alphabet = new char[charsSet.size() + 1];
+    wchar_t* alphabet = new wchar_t[charsSet.size() + 1];
     int ind = 0;
-    for (char c : charsSet) { 
+    for (wchar_t c : charsSet) { 
         alphabet[ind++] = c;
     }
     alphabet[ind] = '\0'; // end of string
 
     std::sort(alphabet, alphabet + ind);
 
-    return std::string(alphabet);
+    return std::wstring(alphabet);
 }
 
-std::string Encode(const std::string& key, const std::string& str)
+std::wstring Encode(const std::string& key, const std::wstring& str)
 {
     if (key == "RLE") {
         return EncodeRLE(str);
@@ -38,44 +41,32 @@ std::string Encode(const std::string& key, const std::string& str)
         return EncodeMTF(str);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
-        return "";
+        return L"";
     }
 }
 
-std::string Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath)
+std::wstring Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath)
 {
-    std::ifstream in(inputPath, std::ios::binary);
-    std::ofstream out(outputPath, std::ios::binary);
+    std::wstring inputStr = ReadFileUtf8(inputPath);
+    std::wstring outputStr = Encode(key, inputStr);
 
-    std::string inputStr;
-    while(1) {
-        char c = (char)in.get();
-        if (in.eof()) break;
-        inputStr += c;
-    }
-
-    std::string outputStr = Encode(key, inputStr);
-    for(int i = 0; i < outputStr.size(); i++) {
-        out << outputStr[i];
-    }
-
-    in.close();
-    out.close();
+    WriteFileUtf8(outputStr, outputPath);
+    
     return outputStr;
 }
 
-std::string EncodeRLE(const std::string& str)
+std::wstring EncodeRLE(const std::wstring& str)
 {
-    std::string newStr;
+    std::wstring newStr = L"";
 
     int countIdent = 1; // current count of repeating identical characters
     int countUnique = 1; // current count of repeating unique characters
-    std::string uniqueSeq(1, str[0]); // last sequence of unique characters
+    std::wstring uniqueSeq(1, str[0]); // last sequence of unique characters
 
     // show if previous character was part of sequence
     bool flag = false;
 
-    char prev = str[0]; // previous character
+    wchar_t prev = str[0]; // previous character
 
     // start RLE
     for (int i = 1; i < str.size(); i++)
@@ -88,7 +79,7 @@ std::string EncodeRLE(const std::string& str)
                 countUnique--; // because "prev" was read as unique
 
                 countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-                newStr.append(std::to_string(-1 * countUnique) + uniqueSeq);
+                newStr += (std::to_wstring(-1 * countUnique) + uniqueSeq);
 
                 countUnique = 1;
             }
@@ -97,7 +88,7 @@ std::string EncodeRLE(const std::string& str)
             else { countIdent++; }
             
             countUnique = 0;
-            uniqueSeq = "";
+            uniqueSeq = L"";
         }
         else 
         {
@@ -105,12 +96,12 @@ std::string EncodeRLE(const std::string& str)
             if (countIdent > 1) {
                 if (countIdent >= 9) {
                     for (int i = 0; i < (countIdent / 9); i++) {
-                        newStr.push_back('9');
+                        newStr.push_back(L'9');
                         newStr.push_back(prev);
                     }
                 }
                 if (countIdent % 9 != 0) {
-                    newStr.push_back(('0' + (countIdent % 9)));
+                    newStr.push_back((L'0' + (countIdent % 9)));
                     newStr.push_back(prev);
                 }
                 flag = true;
@@ -136,10 +127,10 @@ std::string EncodeRLE(const std::string& str)
 
             // limit length of sequence
             if (countUnique == 9) {
-                newStr.append(std::to_string(-1 * countUnique) + uniqueSeq);
+                newStr.append(std::to_wstring(-1 * countUnique) + uniqueSeq);
                 flag = true;
                 countUnique = 0;
-                uniqueSeq = "";
+                uniqueSeq = L"";
             }
         }
         prev = str[i];
@@ -149,29 +140,29 @@ std::string EncodeRLE(const std::string& str)
     if (countIdent > 1) {
         if (countIdent >= 9) {
             for (int i = 0; i < (countIdent / 9); i++) {
-                newStr.push_back('9');
+                newStr.push_back(L'9');
                 newStr.push_back(prev);
             }
         }
         if (countIdent % 9 != 0) {
-            newStr.push_back(('0' + (countIdent % 9)));
+            newStr.push_back((L'0' + (countIdent % 9)));
             newStr.push_back(prev);
         }
     }
     if (countUnique > 0) { 
         countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-        newStr.append(std::to_string(-1 * countUnique) + uniqueSeq);
+        newStr.append(std::to_wstring(-1 * countUnique) + uniqueSeq);
     }
 
     return newStr;
 }
 
-std::string EncodeMTF(const std::string& str)
+std::wstring EncodeMTF(const std::wstring& str)
 {
-    std::string alphabet = Alphabet(str);
+    std::wstring alphabet = Alphabet(str);
     int alphabetLength = alphabet.size();
 
-    std::string encodedArray;
+    std::wstring encodedArray;
 
     // write alphabet
     for (int i = 0; i < alphabetLength; i++) {
@@ -182,11 +173,11 @@ std::string EncodeMTF(const std::string& str)
     // move-to-front
     for (int i = 0; i < str.size(); i++) {
         int index = alphabet.find(str[i]);
-        encodedArray += std::to_string(index) + " ";
+        encodedArray += std::to_wstring(index) + L" ";
 
-        char temp = alphabet[0];
+        wchar_t temp = alphabet[0];
         for (int j = 1; j <= index; j++) {
-            char temp2 = alphabet[j];
+            wchar_t temp2 = alphabet[j];
             alphabet[j] = temp;
             temp = temp2;
         }

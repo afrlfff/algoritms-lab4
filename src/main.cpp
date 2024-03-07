@@ -108,10 +108,10 @@ void CreateGraphics(std::string key)
 int main()
 {
     //AllImagesToText();
-    //EncodeAll("RLE");
-    //DecodeAll("RLE");
-    //CreateResultsFile("RLE");
-    //CreateGraphics("RLE");
+    EncodeAll("MTF");
+    DecodeAll("MTF");
+    CreateResultsFile("MTF");
+    CreateGraphics("MTF");
 
     return 0;
 }

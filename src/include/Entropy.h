@@ -5,23 +5,20 @@
 #include <map>
 #include <cmath>
 
-double Entropy(std::string inputPath) {
-    std::ifstream in(inputPath, std::ios::binary);
-    if (!in.is_open()) {
-        std::cout << "Error opening file: " << inputPath << std::endl;
-        return 1;
-    }
+#include "ReadFileUtf8.h"
 
-    std::map<char, int> charCounts;
+double Entropy(std::string inputPath) {
+    std::wstring content = ReadFileUtf8(inputPath);
+
+    std::map<wchar_t, int> charCounts;
     int countOfChars = 0;
-    char c;
+    wchar_t c;
 
     // Calculate count of each character
-    while (in.get(c)) {
+    for (const wchar_t& c : content) {
         countOfChars++;
         charCounts[c]++;
     }
-    in.close();
 
     // Calculate probabilities and entropy
     double entropy = 0.0;
