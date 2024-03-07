@@ -4,6 +4,7 @@
 #include <filesystem> // C++ 17 and more
 #include <cstdlib>
 #include <windows.h>
+#include <chrono>
 
 #include "include/Encode.h"
 #include "include/Decode.h"
@@ -107,11 +108,13 @@ void CreateGraphics(std::string key)
 
 int main()
 {
+    std::cout << "Start" << std::endl;
+
     //AllImagesToText();
-    EncodeAll("MTF");
-    DecodeAll("MTF");
-    CreateResultsFile("MTF");
-    CreateGraphics("MTF");
+    //EncodeAll("RLE");
+    //DecodeAll("RLE");
+    //CreateResultsFile("RLE");
+    //CreateGraphics("MTF");
 
     return 0;
 }

@@ -13,8 +13,6 @@ double DecodingRatio(const std::string& pathToDecoded, const std::string& pathTo
     int minSize = (decodedContent.size() < originalContent.size()) ? decodedContent.size() : originalContent.size();
     int maxSize = (decodedContent.size() > originalContent.size()) ? decodedContent.size() : originalContent.size();
 
-    std::cout << decodedContent.size() << ' ' << originalContent.size() << std::endl;
-
     int count = 0;
     for (int i = 0; i < minSize; i++){
         if (decodedContent[i] == originalContent[i]){

@@ -37,7 +37,8 @@ std::wstring DecodeRLE(std::wstring str)
 {
     std::wstring newStr = L"";
 
-    int i = 0, count;
+    size_t i = 0;
+    int8_t count;
 
     while (i < str.length())
     {
@@ -47,8 +48,8 @@ std::wstring DecodeRLE(std::wstring str)
         {
             count = str[i + 1] - L'0'; // convert char to int
             i += 2;
-            for (int j = i; j < (i + count); j++) {
-                newStr += str[j];
+            for (size_t j = i; j < (i + count); j++) {
+                newStr.push_back(str[j]);
             }
             i += count;
         }
@@ -65,6 +66,7 @@ std::wstring DecodeRLE(std::wstring str)
     return newStr;
 }
 
+// Move-to-front decoding
 std::wstring DecodeMTF(const std::wstring& str)
 {
     // get count of '\n' in str effectively
@@ -78,8 +80,9 @@ std::wstring DecodeMTF(const std::wstring& str)
     }
 
     // get alphabet length
-    int alphabetLength = 0, newLineCountTemp = 0;
-    for (int i = 0; i < str.size(); i++) {
+    size_t alphabetLength = 0;
+    int newLineCountTemp = 0;
+    for (size_t i = 0; i < str.size(); i++) {
         if (str[i] == L'\n') {
             newLineCountTemp++;
             if (newLineCountTemp == newLineCount) break;
@@ -89,13 +92,13 @@ std::wstring DecodeMTF(const std::wstring& str)
 
     // read alphabet
     wchar_t* alphabet = new wchar_t[alphabetLength + 1];
-    int i = 0; newLineCountTemp = 0;
+    size_t i = 0; newLineCountTemp = 0;
     while (i < str.size()) {
         if (str[i] == L'\n') {
             newLineCountTemp++;
             if (newLineCountTemp == newLineCount) {i++; break;}
         }
-        alphabet[i - 0] = str[i];
+        alphabet[i] = str[i];
         i++;
     }
     alphabet[alphabetLength] = L'\0';
@@ -105,13 +108,14 @@ std::wstring DecodeMTF(const std::wstring& str)
     while (i < str.size()) {
         std::wstring numberStr = L"";
         while (str[i] != L' ') {
-            numberStr += str[i++];
+            numberStr.push_back(str[i++]);
         }
-        int index = std::stoi(numberStr);
-        decodedStr += alphabet[index];
+        size_t index = std::stoi(numberStr);
+        decodedStr.push_back(alphabet[index]);
 
+        // shift
         wchar_t temp = alphabet[0];
-        for (int j = 1; j <= index; j++) {
+        for (size_t j = 1; j <= index; j++) {
             wchar_t temp2 = alphabet[j];
             alphabet[j] = temp;
             temp = temp2;

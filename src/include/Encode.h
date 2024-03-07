@@ -9,14 +9,14 @@
 #include "ReadFileUtf8.h"
 #include "WriteFileUtf8.h"
 
-std::wstring Alphabet(const std::wstring& str); // return ordered alphabet from the string
+wchar_t* Alphabet(const std::wstring& str); // return ordered alphabet from the string
 std::wstring Encode(const std::string& key, const std::wstring& str);
 std::wstring Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
 std::wstring EncodeRLE(const std::wstring& str); // Run-length encoding
 std::wstring EncodeMTF(const std::wstring& str); // Move-to-front encoding
 
 
-std::wstring Alphabet(const std::wstring& str)
+wchar_t* Alphabet(const std::wstring& str)
 {
     const wchar_t* charStr = str.c_str();
     std::set<wchar_t> charsSet(charStr, charStr + wcslen(charStr));
@@ -30,7 +30,7 @@ std::wstring Alphabet(const std::wstring& str)
 
     std::sort(alphabet, alphabet + ind);
 
-    return std::wstring(alphabet);
+    return alphabet;
 }
 
 std::wstring Encode(const std::string& key, const std::wstring& str)
@@ -95,7 +95,7 @@ std::wstring EncodeRLE(const std::wstring& str)
             // record last sequence of identical symbols if it exists
             if (countIdent > 1) {
                 if (countIdent >= 9) {
-                    for (int i = 0; i < (countIdent / 9); i++) {
+                    for (size_t i = 0; i < (countIdent / 9); i++) {
                         newStr.push_back(L'9');
                         newStr.push_back(prev);
                     }
@@ -121,7 +121,7 @@ std::wstring EncodeRLE(const std::wstring& str)
                 }
 
                 countUnique++;
-                uniqueSeq += str[i];
+                uniqueSeq.push_back(str[i]);
             }
             countIdent = 1;
 
@@ -159,24 +159,33 @@ std::wstring EncodeRLE(const std::wstring& str)
 
 std::wstring EncodeMTF(const std::wstring& str)
 {
-    std::wstring alphabet = Alphabet(str);
-    int alphabetLength = alphabet.size();
+    // return the index of the character in the alphabet
+    auto getPosition = [](const wchar_t* array, size_t size, wchar_t c) {
+        const wchar_t* end = array + size;
+        const wchar_t* match = std::find(array, end, c);
+        return (end == match) ? -1 : (match - array);
+    };
 
-    std::wstring encodedArray;
+    wchar_t* alphabet = Alphabet(str);
+    size_t alphabetLength = wcslen(alphabet);
+
+    std::wstring encodedStr;
 
     // write alphabet
-    for (int i = 0; i < alphabetLength; i++) {
-        encodedArray += alphabet[i];
+    for (size_t i = 0; i < alphabetLength; i++) {
+        encodedStr.push_back(alphabet[i]);
     }
-    encodedArray += '\n';
+    encodedStr += '\n';
 
     // move-to-front
-    for (int i = 0; i < str.size(); i++) {
-        int index = alphabet.find(str[i]);
-        encodedArray += std::to_wstring(index) + L" ";
+    for (size_t i = 0; i < str.size(); i++) {
+        size_t index = getPosition(alphabet, alphabetLength, str[i]);
+        encodedStr += std::to_wstring(index);
+        encodedStr.push_back(L' ');
 
+        // shift
         wchar_t temp = alphabet[0];
-        for (int j = 1; j <= index; j++) {
+        for (size_t j = 1; j <= index; j++) {
             wchar_t temp2 = alphabet[j];
             alphabet[j] = temp;
             temp = temp2;
@@ -184,7 +193,7 @@ std::wstring EncodeMTF(const std::wstring& str)
         alphabet[0] = temp;
     }
 
-    return encodedArray;
+    return encodedStr;
 }
 
 // END
