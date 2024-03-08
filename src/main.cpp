@@ -111,8 +111,8 @@ int main()
     std::cout << "Start" << std::endl;
 
     //AllImagesToText();
-    //EncodeAll("RLE");
-    //DecodeAll("RLE");
+    EncodeAll("BWT");
+    DecodeAll("BWT");
     //CreateResultsFile("RLE");
     //CreateGraphics("MTF");
 

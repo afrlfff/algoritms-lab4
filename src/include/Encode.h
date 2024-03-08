@@ -14,6 +14,7 @@ std::wstring Encode(const std::string& key, const std::wstring& str);
 std::wstring Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
 std::wstring EncodeRLE(const std::wstring& str); // Run-length encoding
 std::wstring EncodeMTF(const std::wstring& str); // Move-to-front encoding
+std::wstring EncodeBWT(const std::wstring& str); // Burrows-Wheeler transform
 
 
 wchar_t* Alphabet(const std::wstring& str)
@@ -39,6 +40,8 @@ std::wstring Encode(const std::string& key, const std::wstring& str)
         return EncodeRLE(str);
     } else if (key == "MTF") {
         return EncodeMTF(str);
+    } else if (key == "BWT") {
+        return EncodeBWT(str);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
         return L"";
@@ -194,6 +197,33 @@ std::wstring EncodeMTF(const std::wstring& str)
     }
 
     return encodedStr;
+}
+
+std::wstring EncodeBWT(const std::wstring& str)
+{
+    size_t permutationsLength = str.size();
+    std::wstring* permutations = new std::wstring[permutationsLength];
+
+    // generate permutations
+    permutations[0] = str;
+    for (size_t i = 1; i < permutationsLength; i++) {
+        permutations[i] = str.substr(i, permutationsLength - i) + str.substr(0, i);
+    }
+    
+    // sort permutations
+    std::sort(permutations, permutations + permutationsLength);
+
+    // return result
+    std::wstring result = L"";
+    size_t indexOfOrignal;
+    for (size_t i = 0; i < permutationsLength; i++) {
+        result += permutations[i][permutationsLength - 1];
+        if (permutations[i] == str) indexOfOrignal = i;
+    }
+    result.insert(0, std::to_wstring(indexOfOrignal) + L"\n");
+
+    delete[] permutations;
+    return result;
 }
 
 // END
