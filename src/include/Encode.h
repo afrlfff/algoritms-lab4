@@ -2,7 +2,6 @@
 
 #include <string>
 #include <fstream>
-#include <map>
 #include <set> // makes ordered set
 #include <algorithm> // sorting
 
@@ -10,11 +9,16 @@
 #include "WriteFileUtf8.h"
 
 wchar_t* Alphabet(const std::wstring& str); // return ordered alphabet from the string
+int GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c); 
+int GetIndex(const std::pair<wchar_t, double>& frequencies, const size_t size, wchar_t c); 
+std::pair<wchar_t, double>* Frequencies(const wchar_t* alphabet, const size_t size, const std::wstring& str);
 std::wstring Encode(const std::string& key, const std::wstring& str);
 std::wstring Encode(const std::string& key, const std::string& inputPath, const std::string& outputPath);
 std::wstring EncodeRLE(const std::wstring& str); // Run-length encoding
 std::wstring EncodeMTF(const std::wstring& str); // Move-to-front encoding
 std::wstring EncodeBWT(const std::wstring& str); // Burrows-Wheeler transform
+//std::wstring EncodeAFM(const std::wstring& str); // Ariphmetical encoding
+
 
 
 wchar_t* Alphabet(const std::wstring& str)
@@ -34,6 +38,61 @@ wchar_t* Alphabet(const std::wstring& str)
     return alphabet;
 }
 
+int GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c)
+{
+    // binary search
+    int left = 0, right = size - 1;
+    while (left <= right) {
+        int mid = (left + right) / 2;
+        if (alphabet[mid] == c) {
+            return mid;
+        }
+        if (alphabet[mid] < c) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return -1;
+}
+
+int GetIndex(const std::pair<wchar_t, double>* frequencies, const size_t size, wchar_t c)
+{
+    // binary search
+    int left = 0, right = size - 1;
+    while (left <= right) {
+        int mid = (left + right) / 2;
+        if (frequencies[mid].first == c) {
+            return mid;
+        }
+        if (frequencies[mid].first < c) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return -1;
+}
+
+std::pair<wchar_t, double>* Frequencies(const wchar_t* alphabet, const size_t size, const std::wstring& str)
+{
+    std::pair<wchar_t, double>* frequencies = new std::pair<wchar_t, double>[size];
+    for (int i = 0; i < size; i++) {
+        frequencies[i].first = alphabet[i];
+        frequencies[i].second = 0;
+    }
+
+    size_t countAll = 0;
+    for (wchar_t c : str) {
+        ++frequencies[GetIndex(alphabet, size, c)].second;
+        ++countAll;
+    } for (int i = 0; i < size; i++) {
+        frequencies[i].second /= countAll;
+    }
+
+    return frequencies;
+}
+
 std::wstring Encode(const std::string& key, const std::wstring& str)
 {
     if (key == "RLE") {
@@ -42,6 +101,8 @@ std::wstring Encode(const std::string& key, const std::wstring& str)
         return EncodeMTF(str);
     } else if (key == "BWT") {
         return EncodeBWT(str);
+    } else if (key == "AFM") {
+        return EncodeAFM(str);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
         return L"";
@@ -225,5 +286,44 @@ std::wstring EncodeBWT(const std::wstring& str)
     delete[] permutations;
     return result;
 }
+/* 
+std::wstring EncodeAFM(const std::wstring& str)
+{
+    // initialize sorted alphabet and sorted frequencies
+    wchar_t* alphabet = Alphabet(str);
+    int size = wcslen(alphabet);
+    std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
+    std::sort(frequencies, frequencies + size);
 
+    // inicialize segments
+    double* segments = new double[size + 1]{ 0 };
+    for (int i = 1; i < size; ++i) {
+        segments[i] = frequencies[i - 1].second + segments[i - 1];
+    }
+
+    // encode
+    double leftBound = 0; double rightBound = 1;
+    for (wchar_t c : str) {
+        int index = GetIndex(frequencies, size, c);
+        leftBound = leftBound + segments[index] * (rightBound - leftBound);
+        rightBound = segments[index + 1];
+    }
+
+    // make result
+    std::wstring result = L"";
+    for (const wchar_t& c : str) {
+        result.push_back(c);
+    }
+    result.push_back('\n'); 
+    for (int i = 0; i < size; ++i){
+        result += std::to_wstring(frequencies[i].second) + L' ';
+    }
+    result.push_back('\n');
+    result += std::to_wstring((leftBound + rightBound) / 2);
+
+    delete[] alphabet;
+    delete[] frequencies;
+    return result;
+}
+ */
 // END
