@@ -17,7 +17,7 @@ std::wstring Encode(const std::string& key, const std::string& inputPath, const 
 std::wstring EncodeRLE(const std::wstring& str); // Run-length encoding
 std::wstring EncodeMTF(const std::wstring& str); // Move-to-front encoding
 std::wstring EncodeBWT(const std::wstring& str); // Burrows-Wheeler transform
-//std::wstring EncodeAFM(const std::wstring& str); // Ariphmetical encoding
+std::wstring EncodeAFM(const std::wstring& str); // Ariphmetical encoding
 
 
 
@@ -286,7 +286,7 @@ std::wstring EncodeBWT(const std::wstring& str)
     delete[] permutations;
     return result;
 }
-/* 
+
 std::wstring EncodeAFM(const std::wstring& str)
 {
     // initialize sorted alphabet and sorted frequencies
@@ -325,5 +325,5 @@ std::wstring EncodeAFM(const std::wstring& str)
     delete[] frequencies;
     return result;
 }
- */
+
 // END
