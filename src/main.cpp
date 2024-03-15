@@ -6,15 +6,16 @@
 #include <windows.h>
 #include <chrono>
 
-#include "include/Encode.h"
-#include "include/Decode.h"
+#include "include/EncodeTxt.h"
+#include "include/DecodeTxt.h"
 
 #include "include/Entropy.h"
 #include "include/DecodingRatio.h"
 #include "include/CompressionRatio.h"
 
-namespace fs = std::filesystem;
+// temporary
 
+namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
 const fs::path OUTPUT_DIR = fs::current_path() / "..\\output";
 
@@ -111,9 +112,9 @@ int main()
     std::cout << "Start" << std::endl;
 
     //AllImagesToText();
-    EncodeAll("BWT");
-    DecodeAll("BWT");
-    //CreateResultsFile("RLE");
+    EncodeAll("RLE");
+    DecodeAll("RLE");
+    CreateResultsFile("RLE");
     //CreateGraphics("MTF");
 
     return 0;

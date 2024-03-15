@@ -14,7 +14,7 @@ def img_to_text(input_path, output_path):
                 else:
                     r, g, b = pixels[x, y], pixels[x, y], pixels[x, y]
 
-                # add 256 to avoid problem characters like '\0' etc.
+                # add 256 to avoid problematical characters like '\0' etc.
                 file.write(chr(r + 256) + chr(g + 256) + chr(b + 256))
 
 arguments = sys.argv
