@@ -3,12 +3,12 @@
 #include <iostream>
 #include <fstream>
 
-#include "ReadFileUtf8.h"
+#include "FilesProcessing.h"
 
 double DecodingRatio(const std::string& pathToDecoded, const std::string& pathToOriginal)
 {
-    std::wstring decodedContent = ReadFileUtf8(pathToDecoded);
-    std::wstring originalContent = ReadFileUtf8(pathToOriginal);
+    std::wstring decodedContent = ReadWideContent(pathToDecoded);
+    std::wstring originalContent = ReadWideContent(pathToOriginal);
 
     int minSize = (decodedContent.size() < originalContent.size()) ? decodedContent.size() : originalContent.size();
     int maxSize = (decodedContent.size() > originalContent.size()) ? decodedContent.size() : originalContent.size();

@@ -8,6 +8,8 @@
 
 #include "include/EncodeTxt.h"
 #include "include/DecodeTxt.h"
+#include "include/EncodeBin.h"
+#include "include/DecodeBin.h"
 
 #include "include/Entropy.h"
 #include "include/DecodingRatio.h"
@@ -46,7 +48,7 @@ void EncodeAll(std::string key)
         fs::path outputPath = OUTPUT_DIR / key / (inputPath.stem().string() + "_encoded.txt"); 
         fs::create_directory(OUTPUT_DIR / key); // create directory if it doesn't exist  
 
-        Encode(key, inputPath.string(), outputPath.string());
+        EncodeTxt(key, inputPath.string(), outputPath.string());
     }
 }
 
@@ -65,7 +67,7 @@ void DecodeAll(std::string key)
         fs::path outputPath = OUTPUT_DIR / key / (clearFileName + "_decoded.txt");
         fs::create_directory(OUTPUT_DIR / key); // create directory if it doesn't exist
 
-        Decode(key, inputPath.string(), outputPath.string());
+        DecodeTxt(key, inputPath.string(), outputPath.string());
     }
 }
 
@@ -111,11 +113,14 @@ int main()
 {
     std::cout << "Start" << std::endl;
 
-    //AllImagesToText();
-    EncodeAll("RLE");
-    DecodeAll("RLE");
-    CreateResultsFile("RLE");
-    //CreateGraphics("MTF");
+    // TEST CODE
+    //AllImagesToText(); 
+    //EncodeTxt("RLE", "..\\input\\txt\\temp.txt", "..\\output\\RLE\\temp_encoded.txt");
+    //DecodeTxt("RLE", "..\\output\\RLE\\temp_encoded.txt", "..\\output\\RLE\\temp_decoded.txt");
+
+    EncodeBin("RLE", "..\\input\\txt\\blackwhite.txt", "..\\output\\RLE\\blackwhite_encoded.bin");
+    DecodeBin("RLE", "..\\output\\RLE\\blackwhite_encoded.bin", "..\\output\\RLE\\blackwhite_decoded.txt");
+    //CreateResultsFile("RLE");
 
     return 0;
 }

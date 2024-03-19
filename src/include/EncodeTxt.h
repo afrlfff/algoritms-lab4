@@ -139,14 +139,14 @@ std::wstring EncodeRLE(const std::wstring& str)
     wchar_t prev = str[0]; // previous character
 
     // start RLE
-    for (int i = 1; i < str.size(); i++)
+    for (size_t i = 1; i < str.size(); ++i)
     {
         if (str[i] == prev) 
         {
             // record last sequence of unique symbols if it exists
             if (countUnique > 1) {
                 uniqueSeq.pop_back(); // because "prev" was read as unique
-                countUnique--; // because "prev" was read as unique
+                --countUnique; // because "prev" was read as unique
 
                 countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
                 newStr += (std::to_wstring(-1 * countUnique) + uniqueSeq);
@@ -155,7 +155,7 @@ std::wstring EncodeRLE(const std::wstring& str)
             }
 
             if (flag) { countIdent = 1; flag = false; } 
-            else { countIdent++; }
+            else { ++countIdent; }
             
             countUnique = 0;
             uniqueSeq = L"";
@@ -190,7 +190,7 @@ std::wstring EncodeRLE(const std::wstring& str)
                     uniqueSeq = prev;
                 }
 
-                countUnique++;
+                ++countUnique;
                 uniqueSeq.push_back(str[i]);
             }
             countIdent = 1;
@@ -209,7 +209,7 @@ std::wstring EncodeRLE(const std::wstring& str)
     // record last sequence which was lost in the loop
     if (countIdent > 1) {
         if (countIdent >= 9) {
-            for (int i = 0; i < (countIdent / 9); i++) {
+            for (size_t i = 0; i < (countIdent / 9); ++i) {
                 newStr.push_back(L'9');
                 newStr.push_back(prev);
             }

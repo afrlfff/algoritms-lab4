@@ -5,10 +5,10 @@
 #include <map>
 #include <cmath>
 
-#include "ReadFileUtf8.h"
+#include "FilesProcessing.h"
 
 double Entropy(std::string inputPath) {
-    std::wstring content = ReadFileUtf8(inputPath);
+    std::wstring content = ReadWideContent(inputPath);
 
     std::map<wchar_t, int> charCounts;
     int countOfChars = 0;
