@@ -9,6 +9,7 @@
 #include <cstdint> // for int8_t
 
 #include "FilesProcessing.h"
+#include "TextTools.h"
 
 // public functionality
 std::wstring DecodeBin(const std::string& key, const std::string& inputPath, const std::string& outputPath);

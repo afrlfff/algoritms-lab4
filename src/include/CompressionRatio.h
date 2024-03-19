@@ -7,8 +7,15 @@
 
 double CompressionRatio(std::string originalPath, std::string compressedPath)
 {
-    std::wstring originalContent = ReadWideContent(originalPath);
-    std::wstring compressedContent = ReadWideContent(compressedPath);
+    std::filesystem::path origPath = originalPath;
+    std::filesystem::path compPath = compressedPath;
 
-    return static_cast<double>(originalContent.size()) / compressedContent.size();
+    if (std::filesystem::exists(origPath) && std::filesystem::exists(compPath))
+    {
+        return static_cast<double>(std::filesystem::file_size(origPath)) / 
+                std::filesystem::file_size(compPath);
+    } else {
+        std::cout << "CompressionRatio() Error: File doesn't exist" << std::endl;
+        return -1.0;
+    }
 }

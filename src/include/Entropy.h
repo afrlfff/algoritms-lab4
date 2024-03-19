@@ -7,6 +7,7 @@
 
 #include "FilesProcessing.h"
 
+// Calculate entropy of .txt file
 double Entropy(std::string inputPath) {
     std::wstring content = ReadWideContent(inputPath);
 
