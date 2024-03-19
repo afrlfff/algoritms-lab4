@@ -110,18 +110,34 @@ void AppendWideCharBinary(const wchar_t c, FILE*& f)
 
 // ==========================================================================================================
 
-// read number from file in binary mode
-const int ReadIntBinary(FILE*& f)
+// read standart int number from file in binary mode
+const int ReadInt32Binary(FILE*& f)
 {
     int number;
     fread(&number, sizeof(int), 1, f);
     return number;
 }
 
-// append number to file in binary mode
-void AppendIntBinary(const int number, FILE*& f)
+// append standart int number to file in binary mode
+void AppendInt32Binary(const int number, FILE*& f)
 {
     fwrite(&number, sizeof(int), 1, f);
+}
+
+// ==========================================================================================================
+
+// read number from file in binary mode
+const int ReadInt8Binary(FILE*& f)
+{
+    int8_t number;
+    fread(&number, sizeof(int8_t), 1, f);
+    return number;
+}
+
+// append number to file in binary mode
+void AppendInt8Binary(const int8_t number, FILE*& f)
+{
+    fwrite(&number, sizeof(int8_t), 1, f);
 }
 
 // ==========================================================================================================
