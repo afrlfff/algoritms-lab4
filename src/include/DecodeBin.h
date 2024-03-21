@@ -30,7 +30,7 @@ std::wstring DecodeBin(const std::string& key, const std::string& inputPath, con
     } else if (key == "MTF") {
         result = DecodeMTF(inputPath);
     } else if (key == "BWT") {
-        //return DecodeBWT(inputStr, outputPath);
+        result = DecodeBWT(inputPath);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
         return L"";
@@ -138,6 +138,45 @@ std::wstring DecodeMTF(const std::string& inputPath)
 
     fclose(f);
     return decodedStr;
+}
+
+std::wstring DecodeBWT(const std::string& inputPath)
+{
+    // START READ METADATA
+    FILE* f = fopen(inputPath.c_str(), "rb");
+
+    uint64_t permutationsLength = ReadUint64Binary(f);
+    // get sorted letters
+    wchar_t* sortedLetters = new wchar_t[permutationsLength];
+    for (uint64_t i = 0; i < permutationsLength; ++i) {
+        sortedLetters[i] = ReadWideCharBinary(f);
+    }
+    uint64_t indexOfOriginal = ReadUint64Binary(f);
+
+    fclose(f);
+    // END READ METADATA
+
+    // get permutations
+    std::wstring* permutations = new std::wstring[permutationsLength];
+    for (uint64_t i = 0; i < permutationsLength; ++i) {
+        // add new column
+        for (uint64_t j = 0; j < permutationsLength; ++j) {
+            permutations[j].insert(0, 1, sortedLetters[j]);
+        }
+
+        // sort permutations
+        //// stable sort is necessary to save order
+        std::stable_sort(permutations, permutations + permutationsLength);
+    }
+
+    // get count of the same letters before the letter[indexOfOriginal]
+    uint64_t count = 0;
+    for (int64_t i = 0; i < indexOfOriginal; ++i) {
+        if (sortedLetters[i] == sortedLetters[indexOfOriginal]) ++count;
+    }
+
+    delete[] sortedLetters;
+    return permutations[indexOfOriginal];
 }
 
 // END

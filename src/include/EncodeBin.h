@@ -20,6 +20,7 @@ void EncodeBin(const std::string& key, const std::string& inputPath, const std::
 // private functionality
 void EncodeRLE(const std::wstring& str, const std::string& outputPath); // Run-length encoding
 void EncodeMTF(const std::wstring& str, const std::string& outputPath); // Move-to-front encoding
+void EncodeBWT(const std::wstring& str, const std::string& outputPath); // Burrows-Wheeler transform
 
 
 // START IMPLEMENTATION
@@ -33,7 +34,7 @@ void EncodeBin(const std::string& key, const std::string& inputPath, const std::
     } else if (key == "MTF") {
         return EncodeMTF(inputStr, outputPath);
     } else if (key == "BWT") {
-        //return EncodeBWT(inputStr, outputPath);
+        return EncodeBWT(inputStr, outputPath);
     } else if (key == "AFM") {
         //return EncodeAFM(inputStr, outputPath);
     } else {
@@ -206,6 +207,35 @@ void EncodeMTF(const std::wstring& str, const std::string& outputPath)
         EncodeMTF16(alphabet, alphabetLength, str, f);
     }
 
+    fclose(f);
+}
+
+void EncodeBWT(const std::wstring& str, const std::string& outputPath)
+{
+    FILE* f = fopen(outputPath.c_str(), "wb");
+
+    uint64_t permutationsLength = str.size();
+    std::wstring* permutations = new std::wstring[permutationsLength];
+
+    // generate permutations
+    permutations[0] = str;
+    for (uint64_t i = 1; i < permutationsLength; i++) {
+        permutations[i] = str.substr(i, permutationsLength - i) + str.substr(0, i);
+    }
+    
+    // sort permutations
+    std::sort(permutations, permutations + permutationsLength);
+
+    // write result
+    AppendUint64Binary(permutationsLength, f); // write length of string
+    int64_t indexOfOrignal;
+    for (uint64_t i = 0; i < permutationsLength; ++i) {
+        AppendWideCharBinary(permutations[i][permutationsLength - 1], f);
+        if (permutations[i] == str) indexOfOrignal = i;
+    }
+    AppendUint64Binary(indexOfOrignal, f);
+
+    delete[] permutations;
     fclose(f);
 }
 
