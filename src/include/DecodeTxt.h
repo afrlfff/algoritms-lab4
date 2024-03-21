@@ -77,41 +77,28 @@ std::wstring DecodeRLE(std::wstring str)
 
 std::wstring DecodeMTF(const std::wstring& str)
 {
-    // get count of '\n' in str effectively
-    int newLineCount = 0, spaceCount = 0;
-    for (wchar_t c : str) {
-        if (c == L'\n') newLineCount++;
-        else if (c == L' ') {
-            spaceCount++;
-            if (spaceCount == 2) break;
-        }
-    }
+    wchar_t c;
+    size_t i = 0;
+    int alphabetLength;
+    wchar_t* alphabet;
 
-    // get alphabet length
-    size_t alphabetLength = 0;
-    int newLineCountTemp = 0;
-    for (size_t i = 0; i < str.size(); i++) {
-        if (str[i] == L'\n') {
-            newLineCountTemp++;
-            if (newLineCountTemp == newLineCount) break;
-        }
-        alphabetLength++;
+    // read alphabet length
+    wchar_t buffer[10];
+    while (str[i] != L'\n') {
+        buffer[i++] = str[i];
     }
+    alphabetLength = std::stoi(buffer);
 
     // read alphabet
-    wchar_t* alphabet = new wchar_t[alphabetLength + 1];
-    size_t i = 0; newLineCountTemp = 0;
-    while (i < str.size()) {
-        if (str[i] == L'\n') {
-            newLineCountTemp++;
-            if (newLineCountTemp == newLineCount) {i++; break;}
-        }
-        alphabet[i] = str[i];
-        i++;
+    ++i;
+    alphabet = new wchar_t[alphabetLength + 1];
+    for (size_t j = 0; j < alphabetLength; ++j) {
+        alphabet[j] = str[i++];
     }
     alphabet[alphabetLength] = L'\0';
 
     // decode
+    ++i;
     std::wstring decodedStr = L"";
     while (i < str.size()) {
         std::wstring numberStr = L"";
@@ -121,18 +108,19 @@ std::wstring DecodeMTF(const std::wstring& str)
         size_t index = std::stoi(numberStr);
         decodedStr.push_back(alphabet[index]);
 
-        // shift
+        // shift right
         wchar_t temp = alphabet[0];
-        for (size_t j = 1; j <= index; j++) {
+        for (size_t j = 1; j <= index; ++j) {
             wchar_t temp2 = alphabet[j];
             alphabet[j] = temp;
             temp = temp2;
         }
         alphabet[0] = temp;
 
-        i++;
+        ++i;
     }
 
+    delete[] alphabet;
     return decodedStr;
 }
 

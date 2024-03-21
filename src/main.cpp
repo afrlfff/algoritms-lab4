@@ -16,6 +16,8 @@
 #include "include/CompressionRatio.h"
 
 // temporary
+#include "include/TextTools.h"
+
 
 namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
@@ -121,8 +123,8 @@ void CreateResultsFile(std::string key)
 
         file << fileName + ' ' + 
                 std::to_string(Entropy(pathToOriginal)) + ' ' + 
-                std::to_string(fs::file_size(pathToOriginal) / double(1024)) + ' ' + 
-                std::to_string(fs::file_size(pathToEncoded) / double(1024)) + ' ' + 
+                std::to_string(fs::file_size(pathToOriginal) / static_cast<double>(1024)) + ' ' + 
+                std::to_string(fs::file_size(pathToEncoded) / static_cast<double>(1024)) + ' ' + 
                 std::to_string(CompressionRatio(pathToOriginal, pathToEncoded)) + ' ' + 
                 std::to_string(DecodingRatio(pathToOriginal, pathToDecoded));
     }
@@ -173,12 +175,15 @@ int main()
 
     // TEST CODE
     //AllImagesToText();
-    //EncodeAll("RLE");
-    //DecodeAll("RLE");
-    CreateResultsFile("RLE");
+    EncodeAll("MTF");
+    DecodeAll("MTF");
+    CreateResultsFile("MTF");
 
-    //EncodeBin("RLE", "..\\input\\txt\\blackwhite.txt", "..\\output\\RLE\\blackwhite_encoded.bin");
-    //DecodeBin("RLE", "..\\output\\RLE\\blackwhite_encoded.bin", "..\\output\\RLE\\blackwhite_decoded.txt");
+    //EncodeTxt("MTF", "../input/txt/temp.txt", "../output/MTF/temp_encoded.txt");
+    //DecodeTxt("MTF", "../output/MTF/temp_encoded.txt", "../output/MTF/temp_decoded.txt");
+
+    //EncodeBin("MTF", "..\\input\\txt\\temp.txt", "..\\output\\MTF\\temp_encoded.bin");
+    //DecodeBin("MTF", "..\\output\\MTF\\temp_encoded.bin", "..\\output\\MTF\\temp_decoded.txt");
     //CreateResultsFile("RLE");
 
     return 0;

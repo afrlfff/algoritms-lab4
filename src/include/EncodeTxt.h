@@ -154,33 +154,26 @@ std::wstring EncodeRLE(const std::wstring& str)
 
 std::wstring EncodeMTF(const std::wstring& str)
 {
-    // return the index of the character in the alphabet
-    auto getPosition = [](const wchar_t* array, size_t size, wchar_t c) {
-        const wchar_t* end = array + size;
-        const wchar_t* match = std::find(array, end, c);
-        return (end == match) ? -1 : (match - array);
-    };
-
-    wchar_t* alphabet = Alphabet(str);
-    size_t alphabetLength = wcslen(alphabet);
-
     std::wstring encodedStr;
+    wchar_t* alphabet = Alphabet(str);
+    int alphabetLength = wcslen(alphabet);
 
+    // write length of alphabet
+    encodedStr.append(std::to_wstring(alphabetLength) + L'\n');
     // write alphabet
-    for (size_t i = 0; i < alphabetLength; i++) {
+    for (int i = 0; i < alphabetLength; ++i) {
         encodedStr.push_back(alphabet[i]);
     }
     encodedStr += '\n';
 
     // move-to-front
-    for (size_t i = 0; i < str.size(); i++) {
-        size_t index = getPosition(alphabet, alphabetLength, str[i]);
-        encodedStr += std::to_wstring(index);
-        encodedStr.push_back(L' ');
+    for (size_t i = 0; i < str.size(); ++i) {
+        int index = GetIndex(alphabet, alphabetLength, str[i]);
+        encodedStr += std::to_wstring(index) + L' ';
 
-        // shift
+        // shift to the right
         wchar_t temp = alphabet[0];
-        for (size_t j = 1; j <= index; j++) {
+        for (size_t j = 1; j <= index; ++j) {
             wchar_t temp2 = alphabet[j];
             alphabet[j] = temp;
             temp = temp2;
