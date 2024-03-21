@@ -12,12 +12,14 @@
 #include <cstdint> // for int8_t
 
 #include "FilesProcessing.h"
+#include "TextTools.h"
 
 // public functionality
 void EncodeBin(const std::string& key, const std::string& inputPath, const std::string& outputPath);
 
 // private functionality
 void EncodeRLE(const std::wstring& str, const std::string& outputPath); // Run-length encoding
+void EncodeMTF(const std::wstring& str, const std::string& outputPath); // Move-to-front encoding
 
 
 // START IMPLEMENTATION
@@ -29,7 +31,7 @@ void EncodeBin(const std::string& key, const std::string& inputPath, const std::
     if (key == "RLE") {
         EncodeRLE(inputStr, outputPath);
     } else if (key == "MTF") {
-        //return EncodeMTF(inputStr, outputPath);
+        return EncodeMTF(inputStr, outputPath);
     } else if (key == "BWT") {
         //return EncodeBWT(inputStr, outputPath);
     } else if (key == "AFM") {
@@ -138,6 +140,70 @@ void EncodeRLE(const std::wstring& str, const std::string& outputPath)
         countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
         AppendInt8Binary(-countUnique, f);
         AppendWideStrBinary(uniqueSeq, f);
+    }
+
+    fclose(f);
+}
+
+void EncodeMTF(const std::wstring& str, const std::string& outputPath)
+{
+    auto EncodeMTF8 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, FILE*& f) {
+        // write alphabet
+        for (size_t i = 0; i < alphabetLength; ++i) {
+            AppendWideCharBinary(alphabet[i], f);
+        }
+
+        // write length of string
+        AppendUint64Binary(str.size(), f);
+        // write move-to-front
+        for (size_t i = 0; i < str.size(); ++i) {
+            unsigned index = GetIndex(alphabet, alphabetLength, str[i]);
+            AppendUint8Binary(index, f);
+
+            // shift to the right
+            wchar_t temp = alphabet[0];
+            for (unsigned j = 1; j <= index; ++j) {
+                wchar_t temp2 = alphabet[j];
+                alphabet[j] = temp;
+                temp = temp2;
+            }
+            alphabet[0] = temp;
+        }
+    };
+    auto EncodeMTF16 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, FILE*& f) {
+        // write alphabet
+        for (size_t i = 0; i < alphabetLength; ++i) {
+            AppendWideCharBinary(alphabet[i], f);
+        }
+
+        // write length of string
+        AppendUint64Binary(str.size(), f);
+        // write move-to-front
+        for (size_t i = 0; i < str.size(); ++i) {
+            unsigned index = GetIndex(alphabet, alphabetLength, str[i]);
+            AppendUint16Binary(index, f);
+
+            // shift to the right
+            wchar_t temp = alphabet[0];
+            for (unsigned j = 1; j <= index; ++j) {
+                wchar_t temp2 = alphabet[j];
+                alphabet[j] = temp;
+                temp = temp2;
+            }
+            alphabet[0] = temp;
+        }
+    };
+
+    FILE* f = fopen(outputPath.c_str(), "wb");
+
+    wchar_t* alphabet = Alphabet(str);
+    size_t alphabetLength = wcslen(alphabet);
+
+    AppendUint16Binary(alphabetLength, f); // write length of alphabet
+    if (alphabetLength <= 256) {
+        EncodeMTF8(alphabet, alphabetLength, str, f);
+    } else {
+        EncodeMTF16(alphabet, alphabetLength, str, f);
     }
 
     fclose(f);

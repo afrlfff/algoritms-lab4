@@ -28,7 +28,7 @@ std::wstring DecodeBin(const std::string& key, const std::string& inputPath, con
     if (key == "RLE") {
         result = DecodeRLE(inputPath);
     } else if (key == "MTF") {
-        //result = DecodeMTF(inputPath);
+        result = DecodeMTF(inputPath);
     } else if (key == "BWT") {
         //return DecodeBWT(inputStr, outputPath);
     } else {
@@ -51,8 +51,9 @@ std::wstring DecodeRLE(const std::string& inputPath)
     while (true)
     {
         count = ReadInt8Binary(f);
+
+        // if count == 0 - end of file
         if (count == 0) break;
-        //std::cout << count << std::endl;
 
         // if starts with negative number
         // (sequence of unqiue symbols)
@@ -73,7 +74,70 @@ std::wstring DecodeRLE(const std::string& inputPath)
         }
     }
 
+    fclose(f);
     return newStr;
+}
+
+std::wstring DecodeMTF(const std::string& inputPath)
+{
+    auto DecodeMTF8 = [](wchar_t*& alphabet, const int64_t strLength, FILE*& f) {
+        std::wstring decodedStr = L"";
+        uint8_t index;
+        wchar_t temp, temp2;
+        for (int64_t i = 0; i < strLength; ++i) {
+            index = ReadUint8Binary(f);
+            decodedStr.push_back(alphabet[index]);
+
+            // shift right
+            temp = alphabet[0];
+            for (size_t j = 1; j <= index; ++j) {
+                temp2 = alphabet[j];
+                alphabet[j] = temp;
+                temp = temp2;
+            }
+            alphabet[0] = temp;
+        }
+        return decodedStr;
+    };
+    auto DecodeMTF16 = [](wchar_t*& alphabet, const int64_t strLength, FILE*& f) {
+        std::wstring decodedStr = L"";
+        for (int64_t i = 0; i < strLength; ++i) {
+            int16_t index = ReadUint16Binary(f);
+            decodedStr.push_back(alphabet[index]);
+
+            // shift right
+            wchar_t temp = alphabet[0];
+            for (size_t j = 1; j <= index; ++j) {
+                wchar_t temp2 = alphabet[j];
+                alphabet[j] = temp;
+                temp = temp2;
+            }
+            alphabet[0] = temp;
+        }
+        return decodedStr;
+    };
+
+    FILE* f = fopen(inputPath.c_str(), "rb");
+
+    // read meta data
+    uint16_t alphabetLength = ReadUint16Binary(f);
+    wchar_t* alphabet = new wchar_t[alphabetLength + 1];
+    for (size_t i = 0; i < alphabetLength; ++i) {
+        alphabet[i] = ReadWideCharBinary(f);
+    }
+    alphabet[alphabetLength] = L'\0';
+    int64_t strLength = ReadInt64Binary(f);
+
+    // decode
+    std::wstring decodedStr;
+    if (alphabetLength <= 256) {
+        decodedStr = DecodeMTF8(alphabet, strLength, f);
+    } else {
+        decodedStr = DecodeMTF16(alphabet, strLength, f);
+    }
+
+    fclose(f);
+    return decodedStr;
 }
 
 // END
