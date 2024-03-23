@@ -13,11 +13,11 @@
  */
 class MyFile
 {
-    const char* filePath;
+    char* filePath;
     FILE* fbin;
 public:
-    MyFile(const char* filePath, const char* mode) : filePath(filePath) {}
-    MyFile(const std::string& filePath, const char* mode) : filePath(filePath.c_str()) {}
+    MyFile(const char* filePath, const char* mode);
+    MyFile(const std::string& filePath, const char* mode);
 
     const std::wstring ReadWideContent();
     void WriteWideContent(const std::wstring& str);
@@ -42,11 +42,7 @@ public:
     void AppendInt8Binary(const int8_t& number);
     void AppendUint8Binary(const uint8_t& number);
     
-    ~MyFile()
-    {
-        fclose(fbin);
-        delete[] filePath;
-    };
+    ~MyFile() { fclose(fbin); delete[] filePath; };
 };
 
 // START IMPLEMENTATION OF THE CLASS MyFile
@@ -58,27 +54,33 @@ public:
  * @param filePath The path to the file.
  * @param mode The mode in which to open the file ("r" or "w").
  */
-MyFile::MyFile(const char* filePath, const char* mode) : filePath(filePath)
+MyFile::MyFile(const char* filePath, const char* mode)
 {
+    if (mode != "r" && mode != "w") {
+        std::cout << "Error: Wrong mode" << std::endl;
+        exit(1);
+    }
+
     if (mode == "r")
         fbin = fopen(filePath, "rb");
     else
         fbin = fopen(filePath, "wb");
+
+    int i = 0;
+    while(filePath[i] != '\0') {
+        this->filePath[i++] = filePath[i];
+    }
+    this->filePath[i] = '\0';
+
 }
 
 /**
  * Constructor for the MyFile class.
- * 
+ *
  * @param filePath The path to the file.
  * @param mode The mode in which to open the file ("r" or "w").
  */
-MyFile::MyFile(const std::string& filePath, const char* mode) : filePath(filePath.c_str())
-{
-    if (mode == "r")
-        fbin = fopen(this->filePath, "rb");
-    else
-        fbin = fopen(this->filePath, "wb");
-}
+MyFile::MyFile(const std::string& filePath, const char* mode) { MyFile(filePath.c_str(), mode); }
 
 // ==========================================================================================================
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // ratio of sequences of repeating characters within the string
 double RepeatingCharSeqRatio(const std::wstring& str){
     size_t seqsCount = 0; // number of sequences
