@@ -5,11 +5,12 @@
 #include <map>
 #include <cmath>
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 
 // Calculate entropy of .txt file
-double Entropy(std::string inputPath) {
-    std::wstring content = ReadWideContent(inputPath);
+double Entropy(const std::string& inputPath) {
+    MyFile file(inputPath, "r");
+    std::wstring content = file.ReadWideContent();
 
     std::map<wchar_t, int> charCounts;
     int countOfChars = 0;

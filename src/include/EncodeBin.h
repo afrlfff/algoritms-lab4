@@ -11,7 +11,7 @@
 #include <algorithm> // sorting
 #include <cstdint> // for int8_t
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 #include "TextTools.h"
 
 // public functionality
@@ -27,7 +27,8 @@ void EncodeBWT(const std::wstring& str, const std::string& outputPath); // Burro
 
 void EncodeBin(const std::string& key, const std::string& inputPath, const std::string& outputPath)
 {
-    std::wstring inputStr = ReadWideContent(inputPath);
+    MyFile file(inputPath, "r");
+    std::wstring inputStr = file.ReadWideContent();
 
     if (key == "RLE") {
         EncodeRLE(inputStr, outputPath);
@@ -44,7 +45,7 @@ void EncodeBin(const std::string& key, const std::string& inputPath, const std::
 
 void EncodeRLE(const std::wstring& str, const std::string& outputPath)
 {
-    FILE* f = fopen(outputPath.c_str(), "wb");
+    MyFile file(outputPath, "w");
 
     int countIdent = 1; // current count of repeating identical characters
     int countUnique = 1; // current count of repeating unique characters
@@ -65,8 +66,8 @@ void EncodeRLE(const std::wstring& str, const std::string& outputPath)
                 --countUnique; // because "prev" was read as unique
 
                 countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-                AppendInt8Binary(-countUnique, f);
-                AppendWideStrBinary(uniqueSeq, f);
+                file.AppendInt8Binary(-countUnique);
+                file.AppendWideStrBinary(uniqueSeq);
 
                 countUnique = 1;
             }
@@ -83,13 +84,13 @@ void EncodeRLE(const std::wstring& str, const std::string& outputPath)
             if (countIdent > 1) {
                 if (countIdent >= maxPossibleNumber) {
                     for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                        AppendInt8Binary(maxPossibleNumber, f);
-                        AppendWideCharBinary(prev, f);
+                        file.AppendInt8Binary(maxPossibleNumber);
+                        file.AppendWideCharBinary(prev);
                     }
                 }
                 if (countIdent % maxPossibleNumber != 0) {
-                    AppendInt8Binary(countIdent % maxPossibleNumber, f);
-                    AppendWideCharBinary(prev, f);
+                    file.AppendInt8Binary(countIdent % maxPossibleNumber);
+                    file.AppendWideCharBinary(prev);
                 }
                 flag = true;
                 countIdent = 1;
@@ -114,8 +115,8 @@ void EncodeRLE(const std::wstring& str, const std::string& outputPath)
 
             // limit length of sequence
             if (countUnique == maxPossibleNumber) {
-                AppendInt8Binary(-countUnique, f);
-                AppendWideStrBinary(uniqueSeq, f);
+                file.AppendInt8Binary(-countUnique);
+                file.AppendWideStrBinary(uniqueSeq);
                 flag = true;
                 countUnique = 0;
                 uniqueSeq = L"";
@@ -128,38 +129,36 @@ void EncodeRLE(const std::wstring& str, const std::string& outputPath)
     if (countIdent > 1) {
         if (countIdent >= maxPossibleNumber) {
             for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                AppendInt8Binary(maxPossibleNumber, f);
-                AppendWideCharBinary(prev, f);
+                file.AppendInt8Binary(maxPossibleNumber);
+                file.AppendWideCharBinary(prev);
             }
         }
         if (countIdent % maxPossibleNumber != 0) {
-            AppendInt8Binary(countIdent % maxPossibleNumber, f);
-            AppendWideCharBinary(prev, f);
+            file.AppendInt8Binary(countIdent % maxPossibleNumber);
+            file.AppendWideCharBinary(prev);
         }
     }
     if (countUnique > 0) { 
         countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-        AppendInt8Binary(-countUnique, f);
-        AppendWideStrBinary(uniqueSeq, f);
+        file.AppendInt8Binary(-countUnique);
+        file.AppendWideStrBinary(uniqueSeq);
     }
-
-    fclose(f);
 }
 
 void EncodeMTF(const std::wstring& str, const std::string& outputPath)
 {
-    auto EncodeMTF8 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, FILE*& f) {
+    auto EncodeMTF8 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, MyFile& f) {
         // write alphabet
         for (size_t i = 0; i < alphabetLength; ++i) {
-            AppendWideCharBinary(alphabet[i], f);
+            f.AppendWideCharBinary(alphabet[i]);
         }
 
         // write length of string
-        AppendUint64Binary(str.size(), f);
+        f.AppendUint64Binary(str.size());
         // write move-to-front
         for (size_t i = 0; i < str.size(); ++i) {
             unsigned index = GetIndex(alphabet, alphabetLength, str[i]);
-            AppendUint8Binary(index, f);
+            f.AppendUint8Binary(index);
 
             // shift to the right
             wchar_t temp = alphabet[0];
@@ -171,18 +170,18 @@ void EncodeMTF(const std::wstring& str, const std::string& outputPath)
             alphabet[0] = temp;
         }
     };
-    auto EncodeMTF16 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, FILE*& f) {
+    auto EncodeMTF16 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, MyFile& f) {
         // write alphabet
         for (size_t i = 0; i < alphabetLength; ++i) {
-            AppendWideCharBinary(alphabet[i], f);
+            f.AppendWideCharBinary(alphabet[i]);
         }
 
         // write length of string
-        AppendUint64Binary(str.size(), f);
+        f.AppendUint64Binary(str.size());
         // write move-to-front
         for (size_t i = 0; i < str.size(); ++i) {
             unsigned index = GetIndex(alphabet, alphabetLength, str[i]);
-            AppendUint16Binary(index, f);
+            f.AppendUint16Binary(index);
 
             // shift to the right
             wchar_t temp = alphabet[0];
@@ -195,24 +194,22 @@ void EncodeMTF(const std::wstring& str, const std::string& outputPath)
         }
     };
 
-    FILE* f = fopen(outputPath.c_str(), "wb");
+    MyFile file(outputPath, "w");
 
     wchar_t* alphabet = Alphabet(str);
     size_t alphabetLength = wcslen(alphabet);
 
-    AppendUint16Binary(alphabetLength, f); // write length of alphabet
+    file.AppendUint16Binary(alphabetLength); // write length of alphabet
     if (alphabetLength <= 256) {
-        EncodeMTF8(alphabet, alphabetLength, str, f);
+        EncodeMTF8(alphabet, alphabetLength, str, file);
     } else {
-        EncodeMTF16(alphabet, alphabetLength, str, f);
+        EncodeMTF16(alphabet, alphabetLength, str, file);
     }
-
-    fclose(f);
 }
 
 void EncodeBWT(const std::wstring& str, const std::string& outputPath)
 {
-    FILE* f = fopen(outputPath.c_str(), "wb");
+    MyFile file(outputPath, "w");
 
     uint64_t permutationsLength = str.size();
     std::wstring* permutations = new std::wstring[permutationsLength];
@@ -227,16 +224,15 @@ void EncodeBWT(const std::wstring& str, const std::string& outputPath)
     std::sort(permutations, permutations + permutationsLength);
 
     // write result
-    AppendUint64Binary(permutationsLength, f); // write length of string
+    file.AppendUint64Binary(permutationsLength); // write length of string
     int64_t indexOfOrignal;
     for (uint64_t i = 0; i < permutationsLength; ++i) {
-        AppendWideCharBinary(permutations[i][permutationsLength - 1], f);
+        file.AppendWideCharBinary(permutations[i][permutationsLength - 1]);
         if (permutations[i] == str) indexOfOrignal = i;
     }
-    AppendUint64Binary(indexOfOrignal, f);
+    file.AppendUint64Binary(indexOfOrignal);
 
     delete[] permutations;
-    fclose(f);
 }
 
 // END IMPLEMENTATION

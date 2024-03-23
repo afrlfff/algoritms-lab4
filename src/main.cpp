@@ -15,14 +15,11 @@
 #include "include/DecodingRatio.h"
 #include "include/CompressionRatio.h"
 
-// temporary
-#include "include/TextTools.h"
-
-
 namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
 const fs::path OUTPUT_DIR = fs::current_path() / "..\\output";
 
+// START HELPER FUNCTIONS
 
 void ImageToText(fs::path inputPath)
 {
@@ -169,22 +166,23 @@ void CreateGraphics(std::string key)
     system(command.c_str());
 }
 
+// END HELPER FUNCTIONS
+
 int main()
 {
     std::cout << "Start" << std::endl;
 
     // TEST CODE
     //AllImagesToText();
-    EncodeAll("MTF");
-    DecodeAll("MTF");
-    CreateResultsFile("MTF");
+    //EncodeAll("BWT");
+    //DecodeAll("BWT");
+    //CreateResultsFile("BWT");
 
-    //EncodeTxt("MTF", "../input/txt/temp.txt", "../output/MTF/temp_encoded.txt");
-    //DecodeTxt("MTF", "../output/MTF/temp_encoded.txt", "../output/MTF/temp_decoded.txt");
+    EncodeTxt("AFM", "../input/txt/temp.txt", "../output/AFM/temp_encoded.txt");
+    //DecodeTxt("AFM", "../output/AFM/temp_encoded.txt", "../output/AFM/temp_decoded.txt");
 
-    //EncodeBin("MTF", "..\\input\\txt\\temp.txt", "..\\output\\MTF\\temp_encoded.bin");
-    //DecodeBin("MTF", "..\\output\\MTF\\temp_encoded.bin", "..\\output\\MTF\\temp_decoded.txt");
-    //CreateResultsFile("RLE");
+    //EncodeBin("BWT", "..\\input\\txt\\temp.txt", "..\\output\\BWT\\temp_encoded.bin");
+    //DecodeBin("BWT", "..\\output\\BWT\\temp_encoded.bin", "..\\output\\BWT\\temp_decoded.txt");
 
     return 0;
 }

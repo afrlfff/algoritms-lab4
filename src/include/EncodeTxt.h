@@ -9,7 +9,7 @@
 #include <fstream>
 #include <set> // makes ordered set
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 #include "TextTools.h"
 
 // public functionality
@@ -42,10 +42,12 @@ std::wstring EncodeTxt(const std::string& key, const std::wstring& str)
 
 std::wstring EncodeTxt(const std::string& key, const std::string& inputPath, const std::string& outputPath)
 {
-    std::wstring inputStr = ReadWideContent(inputPath);
+    MyFile inputFile(inputPath, "r");
+    std::wstring inputStr = inputFile.ReadWideContent();
     std::wstring outputStr = EncodeTxt(key, inputStr);
 
-    WriteWideContent(outputStr, outputPath);
+    MyFile outputFile(outputPath, "w");
+    outputFile.WriteWideContent(outputStr);
     
     return outputStr;
 }
@@ -191,7 +193,7 @@ std::wstring EncodeBWT(const std::wstring& str)
 
     // generate permutations
     permutations[0] = str;
-    for (size_t i = 1; i < permutationsLength; i++) {
+    for (size_t i = 1; i < permutationsLength; ++i) {
         permutations[i] = str.substr(i, permutationsLength - i) + str.substr(0, i);
     }
     
@@ -201,7 +203,7 @@ std::wstring EncodeBWT(const std::wstring& str)
     // return result
     std::wstring result = L"";
     size_t indexOfOrignal;
-    for (size_t i = 0; i < permutationsLength; i++) {
+    for (size_t i = 0; i < permutationsLength; ++i) {
         result += permutations[i][permutationsLength - 1];
         if (permutations[i] == str) indexOfOrignal = i;
     }
@@ -220,6 +222,7 @@ std::wstring EncodeAFM(const std::wstring& str)
     std::sort(frequencies, frequencies + size);
 
     // inicialize segments
+    //// (array of bounds points from 0 to 1)
     double* segments = new double[size + 1]{ 0 };
     for (int i = 1; i < size; ++i) {
         segments[i] = frequencies[i - 1].second + segments[i - 1];
@@ -228,15 +231,15 @@ std::wstring EncodeAFM(const std::wstring& str)
     // encode
     double leftBound = 0; double rightBound = 1;
     for (wchar_t c : str) {
-        int index = GetIndex(frequencies, size, c);
+        int index = GetIndexInSorted(frequencies, size, c);
         leftBound = leftBound + segments[index] * (rightBound - leftBound);
         rightBound = segments[index + 1];
     }
 
     // make result
     std::wstring result = L"";
-    for (const wchar_t& c : str) {
-        result.push_back(c);
+    for (int i = 0; i < size; ++i) {
+        result.push_back(alphabet[i]);
     }
     result.push_back('\n'); 
     for (int i = 0; i < size; ++i){
@@ -245,8 +248,7 @@ std::wstring EncodeAFM(const std::wstring& str)
     result.push_back('\n');
     result += std::to_wstring((leftBound + rightBound) / 2);
 
-    delete[] alphabet;
-    delete[] frequencies;
+    delete[] alphabet; delete[] frequencies; delete[] segments;
     return result;
 }
 

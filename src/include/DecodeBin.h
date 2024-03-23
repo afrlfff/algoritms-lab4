@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cstdint> // for int8_t
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 #include "TextTools.h"
 
 // public functionality
@@ -36,21 +36,22 @@ std::wstring DecodeBin(const std::string& key, const std::string& inputPath, con
         return L"";
     }
 
-    WriteWideContent(result, outputPath);
+    MyFile file(outputPath, "w");
+    file.WriteWideContent(result);
 
     return result;
 }
 
 std::wstring DecodeRLE(const std::string& inputPath)
 {
-    FILE* f = fopen(inputPath.c_str(), "rb");
+    MyFile file(inputPath, "r");
     std::wstring newStr = L"";
 
     int8_t count;
 
     while (true)
     {
-        count = ReadInt8Binary(f);
+        count = file.ReadInt8Binary();
 
         // if count == 0 - end of file
         if (count == 0) break;
@@ -60,32 +61,31 @@ std::wstring DecodeRLE(const std::string& inputPath)
         if (count < 0)
         {
             for (int8_t i = 0; i < (-count); ++i) {
-                newStr.push_back(ReadWideCharBinary(f));
+                newStr.push_back(file.ReadWideCharBinary());
             }
         }
         // if starts with positive number
         // (sequence of identical symbols)
         else
         {
-            wchar_t c = ReadWideCharBinary(f);
+            wchar_t c = file.ReadWideCharBinary();
             for (int8_t i = 0; i < count; ++i) {
                 newStr.push_back(c);
             }
         }
     }
 
-    fclose(f);
     return newStr;
 }
 
 std::wstring DecodeMTF(const std::string& inputPath)
 {
-    auto DecodeMTF8 = [](wchar_t*& alphabet, const int64_t strLength, FILE*& f) {
+    auto DecodeMTF8 = [](wchar_t*& alphabet, const int64_t strLength, MyFile& f) {
         std::wstring decodedStr = L"";
         uint8_t index;
         wchar_t temp, temp2;
         for (int64_t i = 0; i < strLength; ++i) {
-            index = ReadUint8Binary(f);
+            index = f.ReadUint8Binary();
             decodedStr.push_back(alphabet[index]);
 
             // shift right
@@ -99,10 +99,10 @@ std::wstring DecodeMTF(const std::string& inputPath)
         }
         return decodedStr;
     };
-    auto DecodeMTF16 = [](wchar_t*& alphabet, const int64_t strLength, FILE*& f) {
+    auto DecodeMTF16 = [](wchar_t*& alphabet, const int64_t strLength, MyFile& f) {
         std::wstring decodedStr = L"";
         for (int64_t i = 0; i < strLength; ++i) {
-            int16_t index = ReadUint16Binary(f);
+            int16_t index = f.ReadUint16Binary();
             decodedStr.push_back(alphabet[index]);
 
             // shift right
@@ -117,43 +117,41 @@ std::wstring DecodeMTF(const std::string& inputPath)
         return decodedStr;
     };
 
-    FILE* f = fopen(inputPath.c_str(), "rb");
+    MyFile file(inputPath, "r");
 
     // read meta data
-    uint16_t alphabetLength = ReadUint16Binary(f);
+    uint16_t alphabetLength = file.ReadUint16Binary();
     wchar_t* alphabet = new wchar_t[alphabetLength + 1];
     for (size_t i = 0; i < alphabetLength; ++i) {
-        alphabet[i] = ReadWideCharBinary(f);
+        alphabet[i] = file.ReadWideCharBinary();
     }
     alphabet[alphabetLength] = L'\0';
-    int64_t strLength = ReadInt64Binary(f);
+    int64_t strLength = file.ReadInt64Binary();
 
     // decode
     std::wstring decodedStr;
     if (alphabetLength <= 256) {
-        decodedStr = DecodeMTF8(alphabet, strLength, f);
+        decodedStr = DecodeMTF8(alphabet, strLength, file);
     } else {
-        decodedStr = DecodeMTF16(alphabet, strLength, f);
+        decodedStr = DecodeMTF16(alphabet, strLength, file);
     }
 
-    fclose(f);
     return decodedStr;
 }
 
 std::wstring DecodeBWT(const std::string& inputPath)
 {
     // START READ METADATA
-    FILE* f = fopen(inputPath.c_str(), "rb");
+    MyFile file(inputPath, "r");
 
-    uint64_t permutationsLength = ReadUint64Binary(f);
+    uint64_t permutationsLength = file.ReadUint64Binary();
     // get sorted letters
     wchar_t* sortedLetters = new wchar_t[permutationsLength];
     for (uint64_t i = 0; i < permutationsLength; ++i) {
-        sortedLetters[i] = ReadWideCharBinary(f);
+        sortedLetters[i] = file.ReadWideCharBinary();
     }
-    uint64_t indexOfOriginal = ReadUint64Binary(f);
+    uint64_t indexOfOriginal = file.ReadUint64Binary();
 
-    fclose(f);
     // END READ METADATA
 
     // get permutations

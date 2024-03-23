@@ -3,9 +3,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "FilesProcessing.h"
-
-double CompressionRatio(std::string originalPath, std::string compressedPath)
+double CompressionRatio(const std::string& originalPath, const std::string& compressedPath)
 {
     std::filesystem::path origPath = originalPath;
     std::filesystem::path compPath = compressedPath;

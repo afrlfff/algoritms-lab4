@@ -7,7 +7,7 @@
 #include <string>
 #include <algorithm>
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 
 // public functionality
 std::wstring DecodeTxt(const std::string& key, const std::wstring& str);
@@ -35,9 +35,12 @@ std::wstring DecodeTxt(const std::string& key, const std::wstring& str)
 
 std::wstring DecodeTxt(const std::string& key, const std::string& inputPath, const std::string& outputPath)
 {
-    std::wstring inputStr = ReadWideContent(inputPath);
+    MyFile inputFile(inputPath, "r");
+    std::wstring inputStr = inputFile.ReadWideContent();
     std::wstring outputStr = DecodeTxt(key, inputStr);
-    WriteWideContent(outputStr, outputPath);
+
+    MyFile outputFile(outputPath, "w");
+    outputFile.WriteWideContent(outputStr);
 
     return outputStr;
 }
@@ -129,20 +132,20 @@ std::wstring DecodeBWT(const std::wstring& str)
     size_t index = -1, permutationsLength = 0;
 
     // get index and length of permutations
-    for (size_t i = 0; i < str.size(); i++) {
-        if (index != -1) permutationsLength++;
+    for (size_t i = 0; i < str.size(); ++i) {
+        if (index != -1) ++permutationsLength;
         if (str[i] == L'\n') {
             index  = std::stoi(str.substr(0, i));
         }
     }
 
     // get permutations
-    std::wstring letters = str.substr(str.size() - permutationsLength, permutationsLength);
+    std::wstring sortedLetters = str.substr(str.size() - permutationsLength, permutationsLength);
     std::wstring* permutations = new std::wstring[permutationsLength];
-    for (size_t i = 0; i < permutationsLength; i++) {
+    for (size_t i = 0; i < permutationsLength; ++i) {
         // add new column
-        for (size_t j = 0; j < permutationsLength; j++) {
-            permutations[j].insert(0, 1, letters[j]);
+        for (size_t j = 0; j < permutationsLength; ++j) {
+            permutations[j].insert(0, 1, sortedLetters[j]);
         }
 
         // sort permutations
@@ -152,23 +155,10 @@ std::wstring DecodeBWT(const std::wstring& str)
     // get count of the same letters before the letter[index]
     size_t count = 0;
     for (size_t i = 0; i < index; i++) {
-        if (letters[i] == letters[index]) count++;
+        if (sortedLetters[i] == sortedLetters[index]) count++;
     }
 
-    // find the index of original string
-    size_t newIndex = 0;
-    size_t countTemp = 0;
-    for (size_t i = 0; i < permutationsLength; i++) {
-        if (permutations[i][permutationsLength -1] == letters[index]) {
-            countTemp++;
-            if (countTemp == count + 1) {
-                newIndex = i;
-                break;
-            }
-        }
-    }
-
-    return permutations[newIndex];
+    return permutations[index];
 }
 
 std::wstring DecodeAFM(const std::wstring& str)

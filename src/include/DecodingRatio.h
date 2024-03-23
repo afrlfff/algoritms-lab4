@@ -3,12 +3,14 @@
 #include <iostream>
 #include <fstream>
 
-#include "FilesProcessing.h"
+#include "MyFile.h"
 
 double DecodingRatio(const std::string& pathToDecoded, const std::string& pathToOriginal)
 {
-    std::wstring decodedContent = ReadWideContent(pathToDecoded);
-    std::wstring originalContent = ReadWideContent(pathToOriginal);
+    MyFile decodedFile(pathToDecoded, "r");
+    MyFile originalFile(pathToOriginal, "r");
+    std::wstring decodedContent = decodedFile.ReadWideContent();
+    std::wstring originalContent = originalFile.ReadWideContent();
 
     int minSize = (decodedContent.size() < originalContent.size()) ? decodedContent.size() : originalContent.size();
     int maxSize = (decodedContent.size() > originalContent.size()) ? decodedContent.size() : originalContent.size();
