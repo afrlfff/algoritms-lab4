@@ -10,7 +10,7 @@
 
 class FileCodec
 {
-    char* key;
+    std::string key;
 
     void EncodeRLE(const std::wstring& str, const std::string& outputPath) const; // Run-length encoding
     void EncodeMTF(const std::wstring& str, const std::string& outputPath) const; // Move-to-front encoding
@@ -23,9 +23,9 @@ class FileCodec
 public:
     FileCodec(const char* key);
 
-    const char* getKey() const { return key; };
-    void EncodeBin(const std::string& inputPath, const std::string& outputPath) const;
-    void DecodeBin(const std::string& inputPath, const std::string& outputPath) const;
+    std::string getKey() const { return key; };
+    void Encode(const std::string& inputPath, const std::string& outputPath) const;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const;
 };
 
 // START IMPLEMENTATION
@@ -48,13 +48,12 @@ FileCodec::FileCodec(const char* key)
     }
 
     int i = 0;
-    while(key[i] != '\0') {
-        this->key[i++] = key[i];
+    while (key[i] != '\0') {
+        this->key.push_back(key[i++]);
     }
-    this->key[i] = '\0';
 }
 
-void FileCodec::EncodeBin(const std::string& inputPath, const std::string& outputPath) const
+void FileCodec::Encode(const std::string& inputPath, const std::string& outputPath) const
 {
     MyFile file(inputPath, "r");
     std::wstring inputStr = file.ReadWideContent();
@@ -72,7 +71,7 @@ void FileCodec::EncodeBin(const std::string& inputPath, const std::string& outpu
     }
 }
 
-void FileCodec::DecodeBin(const std::string& inputPath, const std::string& outputPath) const
+void FileCodec::Decode(const std::string& inputPath, const std::string& outputPath) const
 {
     std::wstring result = L"";
 

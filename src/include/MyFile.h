@@ -13,11 +13,10 @@
  */
 class MyFile
 {
-    char* filePath;
+    std::string filePath;
     FILE* fbin;
 public:
-    MyFile(const char* filePath, const char* mode);
-    MyFile(const std::string& filePath, const char* mode);
+    MyFile(const std::string filePath, const std::string mode);
 
     const std::wstring ReadWideContent();
     void WriteWideContent(const std::wstring& str);
@@ -42,7 +41,7 @@ public:
     void AppendInt8Binary(const int8_t& number);
     void AppendUint8Binary(const uint8_t& number);
     
-    ~MyFile() { fclose(fbin); delete[] filePath; };
+    ~MyFile() { fclose(fbin); };
 };
 
 // START IMPLEMENTATION OF THE CLASS MyFile
@@ -54,33 +53,20 @@ public:
  * @param filePath The path to the file.
  * @param mode The mode in which to open the file ("r" or "w").
  */
-MyFile::MyFile(const char* filePath, const char* mode)
+MyFile::MyFile(const std::string filePath, const std::string mode)
 {
     if (mode != "r" && mode != "w") {
         std::cout << "Error: Wrong mode" << std::endl;
         exit(1);
     }
 
+    this->filePath = filePath;
+
     if (mode == "r")
-        fbin = fopen(filePath, "rb");
+        fbin = fopen(filePath.c_str(), "rb");
     else
-        fbin = fopen(filePath, "wb");
-
-    int i = 0;
-    while(filePath[i] != '\0') {
-        this->filePath[i++] = filePath[i];
-    }
-    this->filePath[i] = '\0';
-
+        fbin = fopen(filePath.c_str(), "wb");
 }
-
-/**
- * Constructor for the MyFile class.
- *
- * @param filePath The path to the file.
- * @param mode The mode in which to open the file ("r" or "w").
- */
-MyFile::MyFile(const std::string& filePath, const char* mode) { MyFile(filePath.c_str(), mode); }
 
 // ==========================================================================================================
 
@@ -156,7 +142,7 @@ void MyFile::WriteWideContent(const std::wstring& str)
 // read std::wstring of fixed size from file in binary mode
 const std::wstring MyFile::ReadWideStrBinary(const size_t& size)
 {
-    fbin = fopen(filePath, "rb");
+    fbin = fopen(filePath.c_str(), "rb");
 
     std::wstring str;
     fread(&str, sizeof(wchar_t), size, fbin);

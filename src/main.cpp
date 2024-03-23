@@ -47,7 +47,7 @@ void EncodeAll(FileCodec& codec)
         fs::path outputPath = OUTPUT_DIR / codec.getKey() / (inputPath.stem().string() + "_encoded.bin"); 
         fs::create_directory(OUTPUT_DIR / codec.getKey()); // create directory if it doesn't exist  
 
-        codec.EncodeBin(inputPath.string(), outputPath.string());
+        codec.Encode(inputPath.string(), outputPath.string());
     }
 }
 
@@ -67,7 +67,7 @@ void DecodeAll(FileCodec& codec)
         fs::path outputPath = OUTPUT_DIR / codec.getKey() / (clearFileName + "_decoded.txt");
         fs::create_directory(OUTPUT_DIR / codec.getKey()); // create directory if it doesn't exist
 
-        codec.DecodeBin(inputPath.string(), outputPath.string());
+        codec.Decode(inputPath.string(), outputPath.string());
     }
 }
 
@@ -116,17 +116,19 @@ int main()
 {
     std::cout << "Start" << std::endl;
 
+    FileCodec codecRLE("RLE");
+
     // TEST CODE
     //AllImagesToText();
     //EncodeAll("BWT");
     //DecodeAll("BWT");
     //CreateResultsFile("BWT");
 
-    EncodeTxt("AFM", "../input/txt/temp.txt", "../output/AFM/temp_encoded.txt");
+    //EncodeTxt("AFM", "../input/txt/temp.txt", "../output/AFM/temp_encoded.txt");
     //DecodeTxt("AFM", "../output/AFM/temp_encoded.txt", "../output/AFM/temp_decoded.txt");
 
-    //EncodeBin("BWT", "..\\input\\txt\\temp.txt", "..\\output\\BWT\\temp_encoded.bin");
-    //DecodeBin("BWT", "..\\output\\BWT\\temp_encoded.bin", "..\\output\\BWT\\temp_decoded.txt");
+    codecRLE.Encode("..\\input\\txt\\temp.txt", "..\\output\\RLE\\temp_encoded.bin");
+    codecRLE.Decode("..\\output\\RLE\\temp_encoded.bin", "..\\output\\RLE\\temp_decoded.txt");
 
     return 0;
 }
