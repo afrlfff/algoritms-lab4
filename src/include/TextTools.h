@@ -2,10 +2,18 @@
 
 #include <string>
 #include <set> // makes ordered set
+#include <map>
 #include <algorithm> // sorting
+#include <cmath>
+
+// Calculate entropy of the string
+double TextEntropy(const std::wstring& str);
 
 // return ordered alphabet from the string
 wchar_t* Alphabet(const std::wstring& str);
+
+// return frequencies of the characters
+std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
 
 // return index of the character in the alphabet
 unsigned GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c);
@@ -19,11 +27,35 @@ unsigned GetIndexInSorted(const wchar_t* alphabet, const size_t size, wchar_t c)
 // return index of the character in sorted frequencies
 unsigned GetIndexInSorted(const std::pair<wchar_t, double>* frequencies, const size_t size, wchar_t c);
 
-// return frequencies of the characters
-std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
+// ratio of sequences of repeating characters within the string
+double RepeatingCharSeqRatio(const std::wstring& str);
+
+// mean length of sequences of repeating characters
+double MeanRepeatingCharSeqLength(const std::wstring& str);
 
 
 // START IMPLEMENTATION
+
+double TextEntropy(const std::wstring& str) {
+    std::map<wchar_t, int> charCounts;
+    int countOfChars = 0;
+    wchar_t c;
+
+    // Calculate count of each character
+    for (const wchar_t& c : str) {
+        countOfChars++;
+        ++charCounts[c];
+    }
+
+    // Calculate probabilities and entropy
+    double entropy = 0.0;
+    for (const auto& pair : charCounts) {
+        double probability = static_cast<double>(pair.second) / countOfChars;
+        entropy -= probability * std::log2(probability);
+    }
+
+    return entropy;
+}
 
 wchar_t* Alphabet(const std::wstring& str)
 {
@@ -116,6 +148,42 @@ std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, co
     }
 
     return frequencies;
+}
+
+double RepeatingCharSeqRatio(const std::wstring& str){
+    size_t seqsCount = 0; // number of sequences
+    size_t charsCount = 0; // number of characters in sequences
+    size_t i = 0;
+    while (i < str.size() - 1) {
+        if (str[i] == str[i + 1]) {
+            ++seqsCount;
+            ++charsCount; // fix the fisrt char
+            while (str[i] == str[i + 1]) {
+                ++charsCount; ++i;
+            }
+        }
+        ++i;
+    }
+
+    return (str.size() == 0) ? 0 : (static_cast<double>(charsCount - 2 * seqsCount) / str.size());
+}
+
+double MeanRepeatingCharSeqLength(const std::wstring& str){
+    size_t seqsCount = 0; // number of sequences
+    size_t charsCount = 0; // number of characters in sequences
+    size_t i = 0;
+    while (i < str.size() - 1) {
+        if (str[i] == str[i + 1]) {
+            ++seqsCount;
+            ++charsCount; // fix the fisrt char
+            while (str[i] == str[i + 1]) {
+                ++charsCount; ++i;
+            }
+        }
+        ++i;
+    }
+
+    return (seqsCount == 0) ? 0 : (static_cast<double>(charsCount) / seqsCount);
 }
 
 // END IMPLEMENTATION
