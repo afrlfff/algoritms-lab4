@@ -9,7 +9,7 @@
 /**
  * Class for working with files containing wide charaters in C++
  * (was wrote cause there are many difficulties with wide characters processing in C++)
- * It wraps standart C file handling functions and C++ a little
+ * It wraps standart C file handling functions and use C++ a little
  */
 class MyFile
 {
