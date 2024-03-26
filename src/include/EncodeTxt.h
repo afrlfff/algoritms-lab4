@@ -215,40 +215,77 @@ std::wstring EncodeBWT(const std::wstring& str)
 
 std::wstring EncodeAFM(const std::wstring& str)
 {
-    // initialize sorted alphabet and sorted frequencies
-    wchar_t* alphabet = Alphabet(str);
-    int size = wcslen(alphabet);
-    std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
-    std::sort(frequencies, frequencies + size);
+    auto encode = [](const std::wstring& str) {
+        // initialize sorted alphabet and sorted frequencies
+        wchar_t* alphabet = Alphabet(str);
+        int size = wcslen(alphabet);
+        std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
+        std::sort(frequencies, frequencies + size);
 
-    // inicialize segments
-    //// (array of bounds points from 0 to 1)
-    double* segments = new double[size + 1]{ 0 };
-    for (int i = 1; i < size; ++i) {
-        segments[i] = frequencies[i - 1].second + segments[i - 1];
-    }
+        // leave in frequencies only 2 characters after the decimal point
+        // (for correct decoding)
+        for (int i = 0; i < size; ++i) {
+            frequencies[i].second = ((int)(frequencies[i].second * 100)) / 100.0;
+        }
 
-    // encode
-    double leftBound = 0; double rightBound = 1;
-    for (wchar_t c : str) {
-        int index = GetIndexInSorted(frequencies, size, c);
-        leftBound = leftBound + segments[index] * (rightBound - leftBound);
-        rightBound = segments[index + 1];
-    }
+        // inicialize segments
+        //// (array of bounds points from 0 to 1)
+        double* segments = new double[size + 1]{ 0 };
+        for (int i = 1; i < size; ++i) {
+            segments[i] = frequencies[i - 1].second + segments[i - 1];
+        }
+        segments[size] = 1;
 
-    // make result
+        // encode
+        double leftBound = 0, rightBound = 1, distance;
+        for (wchar_t c : str) {
+            int index = GetIndexInSorted(frequencies, size, c);
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        // make result
+        std::wstring result = std::to_wstring(size) + L'\n';
+        for (int i = 0; i < size; ++i) {
+            result.push_back(alphabet[i]);
+        }
+        result.push_back('\n'); 
+        for (int i = 0; i < size; ++i){
+            result += std::to_wstring((int8_t)((frequencies[i].second) * 100)) + L' ';
+        }
+        result.push_back('\n');
+
+        double resultValue = (rightBound + leftBound) / 2;
+        // leave only 9 digits after the decimal point
+        //// cause int value can store any number with 9 digits 
+        result += std::to_wstring((int)(resultValue * 1000000000));
+
+        delete[] alphabet; delete[] frequencies; delete[] segments;
+        return result;
+    };
+
     std::wstring result = L"";
-    for (int i = 0; i < size; ++i) {
-        result.push_back(alphabet[i]);
-    }
-    result.push_back('\n'); 
-    for (int i = 0; i < size; ++i){
-        result += std::to_wstring(frequencies[i].second) + L' ';
-    }
-    result.push_back('\n');
-    result += std::to_wstring((leftBound + rightBound) / 2);
+    size_t size = str.size();
 
-    delete[] alphabet; delete[] frequencies; delete[] segments;
+    // write count of sequences
+    size_t countOfSequences = (size % 9 == 0) ? (size / 9) : (size / 9 + 1);
+    result += std::to_wstring(countOfSequences) + L'\n';
+
+    // encode every 9 chars
+    size_t i = 0;
+    while (i + 9 <= size) {
+        result += encode(str.substr(i, 9)) + L'\n';
+        i += 9;
+    }
+    // handle the rest of the string
+    if (i != size) {
+        result += encode(str.substr(i, size - i)) + L'\n';
+        result += std::to_wstring(size - i) + L'\n'; // fix last count of characters (cause it lower that 9)
+    } else {
+        result += std::to_wstring(9) + L'\n';
+    }
+
     return result;
 }
 

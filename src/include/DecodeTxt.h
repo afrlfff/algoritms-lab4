@@ -27,6 +27,8 @@ std::wstring DecodeTxt(const std::string& key, const std::wstring& str)
         return DecodeMTF(str);
     } else if (key == "BWT") {
         return DecodeBWT(str);
+    } else if (key == "AFM") {
+        return DecodeAFM(str);
     } else {
         std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
         return L"";
@@ -163,7 +165,120 @@ std::wstring DecodeBWT(const std::wstring& str)
 
 std::wstring DecodeAFM(const std::wstring& str)
 {
-    return L"";
+    auto decode = [](const wchar_t alhpabet[10], int alphabetSize, const double frequencies[9], double resultValue, int countOfIterations) {
+        // inicialize segments
+        //// (array of bound points from 0 to 1)
+        double* segments = new double[alphabetSize + 1]{ 0 };
+        for (int i = 1; i < alphabetSize; ++i) {
+            segments[i] = frequencies[i - 1] + segments[i - 1];
+        }
+        segments[alphabetSize] = 1;
+
+        // decode
+        std::wstring result;
+        double leftBound = 0, rightBound = 1, distance;
+        int index;
+        for (int i = 0; i < countOfIterations; ++i) {
+            // find index of segment that contains resultValue
+            for (int j = 0; j < alphabetSize; ++j) {
+                if (resultValue >= (leftBound + segments[j] * (rightBound - leftBound)) && 
+                    resultValue < (leftBound + segments[j + 1] * (rightBound - leftBound))) {
+                    index = j;
+                    break;
+                }
+            }
+            result.push_back(alhpabet[index]);
+
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        delete[] segments;
+        return result;
+    };
+
+    size_t i = 0, // index in str
+           bufferIndex; // index in buffer
+    wchar_t buffer[20];
+    std::wstring result = L""; 
+
+    // get count of sequences
+    size_t countOfSequences;
+    bufferIndex = 0;
+    while (str[i] != L'\n') {
+        buffer[bufferIndex++] = str[i];
+        ++i;
+    }
+    buffer[bufferIndex] = L'\0';
+    ++i; // to skip '\n'
+    countOfSequences = std::stoi(buffer);
+
+    // get sequences and merge results
+    int alphabetSize;
+    wchar_t alhpabet[9 + 1]; // can't contain more that 9 characters
+    double frequencies[9];
+    double resultValue;
+    int lastCount = 9;
+    for (size_t j = 0; j < countOfSequences; ++j) {
+        // read size of alphabet
+        bufferIndex = 0;
+        while (str[i] != L'\n') {
+            buffer[bufferIndex++] = str[i];
+            ++i;
+        }
+        buffer[bufferIndex] = L'\0';
+        ++i; // i++ to skip '\n'
+        alphabetSize = std::stoi(buffer);
+
+        // read alhpabet
+        for (int k = 0; k < alphabetSize; ++k) {
+            alhpabet[k] = str[i];
+            ++i;
+        }
+        alhpabet[alphabetSize] = L'\0';
+        ++i; // to skip '\n'
+
+        // read frequencies
+        for (int k = 0; k < alphabetSize; ++k) {
+            bufferIndex = 0;
+            while (str[i] != L' ' && str[i] != L'\n') {
+                buffer[bufferIndex++] = str[i];
+                ++i;
+            }
+
+            buffer[bufferIndex++] = L'\0';
+            frequencies[k] = std::stoi(buffer) / 100.0;
+            ++i; // to skip ' '
+        }
+
+        // read result value
+        ++i; // to skip '\n'
+        bufferIndex = 0;
+        while (str[i] != L'\n') {
+            buffer[bufferIndex++] = str[i];
+            ++i;
+        }
+        buffer[bufferIndex] = L'\0';
+        ++i; // to skip '\n'
+        resultValue = std::stoi(buffer) / 1000000000.0;
+
+        // read last count if it exists
+        if (j == countOfSequences - 1) { // if last iteration
+            bufferIndex = 0;
+            while (str[i] != L'\n') {
+                buffer[bufferIndex++] = str[i];
+                ++i;
+            }
+            buffer[bufferIndex] = L'\0';
+            lastCount = std::stoi(buffer);
+            ++i; // to skip '\n'
+        }
+
+        result += decode(alhpabet, alphabetSize, frequencies, resultValue, lastCount);
+    }
+
+    return result;
 }
 
 

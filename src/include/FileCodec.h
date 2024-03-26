@@ -431,12 +431,154 @@ std::wstring FileCodec::DecodeBWT(const std::string& inputPath) const
 
 void FileCodec::EncodeAFM(const std::wstring& str, const std::string& outputPath) const
 {
+    auto encode = [](const std::wstring& str, MyFile& file) {
+        // initialize sorted alphabet and sorted frequencies
+        wchar_t* alphabet = Alphabet(str);
+        int8_t size = wcslen(alphabet);
+        std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
+        std::sort(frequencies, frequencies + size);
 
+        // leave in frequencies only 2 characters after the decimal point
+        // (for correct decoding)
+        for (int8_t i = 0; i < size; ++i) {
+            frequencies[i].second = ((int8_t)(frequencies[i].second * 100)) / 100.0;
+        }
+
+        // inicialize segments
+        //// (array of bounds points from 0 to 1)
+        double* segments = new double[size + 1]{ 0 };
+        for (int i = 1; i < size; ++i) {
+            segments[i] = frequencies[i - 1].second + segments[i - 1];
+        }
+        segments[size] = 1;
+
+        // encode (get final left and right bounds)
+        double leftBound = 0, rightBound = 1, distance;
+        for (wchar_t c : str) {
+            int8_t index = GetIndexInSorted(frequencies, size, c);
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        // write size of alphabet
+        file.AppendInt8Binary(size);
+
+        // write alphabet
+        for (int8_t i = 0; i < size; ++i) {
+            file.AppendWideCharBinary(alphabet[i]);
+        }
+
+        // write frequencies
+        for (int8_t i = 0; i < size; ++i){
+            file.AppendInt8Binary((int8_t)((frequencies[i].second) * 100));
+        }
+
+        double resultValue = (rightBound + leftBound) / 2;
+        // leave only 9 digits after the decimal point
+        //// cause int32_t value can store any number with 9 digits 
+        file.AppendInt32Binary((int32_t)(resultValue * 1000000000));
+
+        delete[] alphabet; delete[] frequencies; delete[] segments;
+    };
+
+    MyFile file(outputPath, "w");
+    int64_t size = str.size();
+
+    // write count of sequences
+    int64_t countOfSequences = (size % 9 == 0) ? (size / 9) : (size / 9 + 1);
+    file.AppendInt64Binary(countOfSequences);
+
+    // encode every 9 chars
+    int64_t i = 0;
+    while (i + 9 <= size) {
+        encode(str.substr(i, 9), file);
+        i += 9;
+    }
+    // handle the rest of the string
+    if (i != size) {
+        encode(str.substr(i, size - i), file);
+        file.AppendInt8Binary(size - i); // fix last count of characters
+                                         //(cause it can be lower than 9)
+    } else {
+        file.AppendInt8Binary(9); // fix last count of characters
+    }
 }
 
 std::wstring FileCodec::DecodeAFM(const std::string& inputPath) const
 {
-    return L"";
+    auto decode = [](const wchar_t alhpabet[10], int8_t alphabetSize, const double frequencies[9], double resultValue, int8_t countOfIterations) {
+        // inicialize segments
+        //// (array of bound points from 0 to 1)
+        double* segments = new double[alphabetSize + 1]{ 0 };
+        for (int8_t i = 1; i < alphabetSize; ++i) {
+            segments[i] = frequencies[i - 1] + segments[i - 1];
+        }
+        segments[alphabetSize] = 1;
+
+        // decode
+        std::wstring result;
+        double leftBound = 0, rightBound = 1, distance;
+        int index;
+        for (int8_t i = 0; i < countOfIterations; ++i) {
+            // find index of segment contains resultValue
+            for (int8_t j = 0; j < alphabetSize; ++j) {
+                if (resultValue >= (leftBound + segments[j] * (rightBound - leftBound)) && 
+                    resultValue < (leftBound + segments[j + 1] * (rightBound - leftBound))) {
+                    index = j;
+                    break;
+                }
+            }
+            result.push_back(alhpabet[index]);
+
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        delete[] segments;
+        return result;
+    };
+
+    std::wstring result = L""; 
+    MyFile file(inputPath, "r");
+
+    // get count of sequences
+    int64_t countOfSequences = file.ReadInt64Binary();
+
+    // get sequences and merge results
+    int8_t alphabetSize;
+    wchar_t alhpabet[9 + 1]; // can't contain more than 9 characters
+    double frequencies[9]; // can't contain more than 9 characters
+    double resultValue;
+    int8_t lastCount = 9;
+    for (int64_t i = 0; i < countOfSequences; ++i) {
+        // read size of alphabet
+        alphabetSize = file.ReadInt8Binary();
+
+        // read alhpabet
+        for (int8_t j = 0; j < alphabetSize; ++j) {
+            alhpabet[j] = file.ReadWideCharBinary();
+        }
+        alhpabet[alphabetSize] = L'\0';
+
+        // read frequencies
+        for (int8_t j = 0; j < alphabetSize; ++j) {
+            frequencies[j] = file.ReadInt8Binary() / 100.0;
+        }
+
+        // read result value
+        resultValue = file.ReadInt32Binary() / 1000000000.0;
+
+        // read last count if it exists
+        if (i == countOfSequences - 1) { // if last iteration
+            lastCount = file.ReadInt8Binary();
+        }
+
+        result += decode(alhpabet, alphabetSize, frequencies, resultValue, lastCount);
+    }
+
+    return result;
 }
 
 // END IMPLEMENTATION
