@@ -11,8 +11,7 @@
 #include "include/EncodingDecodingRatios.h"
 
 // temporary
-#include "include/EncodeTxt.h"
-#include "include/DecodeTxt.h"
+#include "include/FileCodecTxtOnly.h"
 
 namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
@@ -30,18 +29,11 @@ int main()
 {
     std::cout << "Start" << std::endl;
 
-    CodecAFM codec;
-
     // TEST CODE
 
-    EncodeAll(codec);
-    DecodeAll(codec);
-
-    //EncodeTxt("AFM", "../input/txt/blackwhite.txt", "../output/AFM/blackwhite_encoded.txt");
-    //DecodeTxt("AFM", "../output/AFM/blackwhite_encoded.txt", "../output/AFM/blackwhite_decoded.txt");
-
-    //codec.Encode("..\\input\\txt\\blackwhite.txt", "..\\output\\AFM\\blackwhite_encoded.bin");
-    //codec.Decode("..\\output\\AFM\\blackwhite_encoded.bin", "..\\output\\AFM\\blackwhite_decoded.txt");
+    CodecAFMTxtOnly codec;
+    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.txt");
+    codec.Decode("..\\output\\encoded\\temp_encoded.txt", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 
