@@ -8,95 +8,60 @@
 #include "MyFile.h"
 #include "TextTools.h"
 
+// base abstract class
 class FileCodec
 {
-    std::string key;
-
-    void EncodeRLE(const std::wstring& str, const std::string& outputPath) const; // Run-length encoding
-    void EncodeMTF(const std::wstring& str, const std::string& outputPath) const; // Move-to-front encoding
-    void EncodeBWT(const std::wstring& str, const std::string& outputPath) const; // Burrows-Wheeler transform
-    void EncodeAFM(const std::wstring& str, const std::string& outputPath) const; // Ariphmetical encoding
-    std::wstring DecodeRLE(const std::string& inputPath) const; // Run-length encoding
-    std::wstring DecodeMTF(const std::string& inputPath) const; // Move-to-front
-    std::wstring DecodeBWT(const std::string& inputPath) const; // Burrows-Wheeler transform
-    std::wstring DecodeAFM(const std::string& inputPath) const; // Ariphmetical encoding
 public:
-    FileCodec(const char* key);
-
-    std::string getKey() const { return key; };
-    void Encode(const std::string& inputPath, const std::string& outputPath) const;
-    void Decode(const std::string& inputPath, const std::string& outputPath) const;
+    virtual void Encode(const std::string& inputPath, const std::string& outputPath) const = 0;
+    virtual void Decode(const std::string& inputPath, const std::string& outputPath) const = 0;
 };
+
+// Run-length encoding
+class CodecRLE : public FileCodec
+{
+    void EncodeRLE(const std::wstring& str, const std::string& outputPath) const;
+    std::wstring DecodeRLE(const std::string& inputPath) const;
+public:
+    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+};
+
+// Move-to-front
+class CodecMTF : public FileCodec
+{
+    void EncodeMTF(const std::wstring& str, const std::string& outputPath) const;
+    std::wstring DecodeMTF(const std::string& inputPath) const;
+public:
+    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+};
+
+// Burrows-Wheeler transform
+class CodecBWT : public FileCodec
+{
+    void EncodeBWT(const std::wstring& str, const std::string& outputPath) const;
+    std::wstring DecodeBWT(const std::string& inputPath) const;
+public:
+    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+};
+
+// Ariphmetical encoding
+class CodecAFM : public FileCodec
+{
+    void EncodeAFM(const std::wstring& str, const std::string& outputPath) const;
+    std::wstring DecodeAFM(const std::string& inputPath) const;
+public:
+    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+};
+
 
 // START IMPLEMENTATION
 
-// ==============================================================================
-// PUBLIC FUNCTIONS
-// ==============================================================================
+// Run-length encoding
 
-/**
- * Constructor for the MyFile class.
- *
- * @param key key which indicates the type encoding algorithm 
- *            (possible values: "RLE", "MTF", "BWT", "AFM").
- */
-FileCodec::FileCodec(const char* key)
-{
-    if (key != "RLE" && key != "MTF" && key != "BWT" && key != "AFM") {
-        std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
-        exit(1);
-    }
-
-    int i = 0;
-    while (key[i] != '\0') {
-        this->key.push_back(key[i++]);
-    }
-}
-
-void FileCodec::Encode(const std::string& inputPath, const std::string& outputPath) const
-{
-    MyFile file(inputPath, "r");
-    std::wstring inputStr = file.ReadWideContent();
-
-    if (key == "RLE") {
-        EncodeRLE(inputStr, outputPath);
-    } else if (key == "MTF") {
-        return EncodeMTF(inputStr, outputPath);
-    } else if (key == "BWT") {
-        return EncodeBWT(inputStr, outputPath);
-    } else if (key == "AFM") {
-        return EncodeAFM(inputStr, outputPath);
-    } else {
-        std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
-    }
-}
-
-void FileCodec::Decode(const std::string& inputPath, const std::string& outputPath) const
-{
-    std::wstring result = L"";
-
-    if (key == "RLE") {
-        result = DecodeRLE(inputPath);
-    } else if (key == "MTF") {
-        result = DecodeMTF(inputPath);
-    } else if (key == "BWT") {
-        result = DecodeBWT(inputPath);
-    } else if (key == "AFM") {
-        result = DecodeAFM(inputPath);
-    } else {
-        std::cout << "Error: The key " << key << " doesn't exist." << std::endl;
-        return;
-    }
-
-    MyFile file(outputPath, "w");
-    file.WriteWideContent(result);
-}
-
-// ==============================================================================
-// PRIVATE FUNCTIONS
-// ==============================================================================
-
-void FileCodec::EncodeRLE(const std::wstring& str, const std::string& outputPath) const
+void CodecRLE::EncodeRLE(const std::wstring& str, const std::string& outputPath) const
 {
     MyFile file(outputPath, "w");
 
@@ -198,7 +163,7 @@ void FileCodec::EncodeRLE(const std::wstring& str, const std::string& outputPath
     }
 }
 
-std::wstring FileCodec::DecodeRLE(const std::string& inputPath) const
+std::wstring CodecRLE::DecodeRLE(const std::string& inputPath) const
 {
     MyFile file(inputPath, "r");
     std::wstring newStr = L"";
@@ -234,9 +199,23 @@ std::wstring FileCodec::DecodeRLE(const std::string& inputPath) const
     return newStr;
 }
 
-// ==============================================================================
+void CodecRLE::Encode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile file(inputPath, "r");
+    std::wstring inputStr = file.ReadWideContent();
+    EncodeRLE(inputStr, outputPath);
+}
 
-void FileCodec::EncodeMTF(const std::wstring& str, const std::string& outputPath) const
+void CodecRLE::Decode(const std::string& inputPath, const std::string& outputPath) const
+{
+    std::wstring result = DecodeRLE(inputPath);
+    MyFile file(outputPath, "w");
+    file.WriteWideContent(result);
+}
+
+// Move-to-front
+
+void CodecMTF::EncodeMTF(const std::wstring& str, const std::string& outputPath) const
 {
     auto EncodeMTF8 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, MyFile& f) {
         // write alphabet
@@ -298,7 +277,7 @@ void FileCodec::EncodeMTF(const std::wstring& str, const std::string& outputPath
     }
 }
 
-std::wstring FileCodec::DecodeMTF(const std::string& inputPath) const
+std::wstring CodecMTF::DecodeMTF(const std::string& inputPath) const
 {
     auto DecodeMTF8 = [](wchar_t*& alphabet, const int64_t strLength, MyFile& f) {
         std::wstring decodedStr = L"";
@@ -359,9 +338,23 @@ std::wstring FileCodec::DecodeMTF(const std::string& inputPath) const
     return decodedStr;
 }
 
-// ==============================================================================
+void CodecMTF::Encode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile file(inputPath, "r");
+    std::wstring inputStr = file.ReadWideContent();
+    EncodeMTF(inputStr, outputPath);
+}
 
-void FileCodec::EncodeBWT(const std::wstring& str, const std::string& outputPath) const
+void CodecMTF::Decode(const std::string& inputPath, const std::string& outputPath) const
+{
+    std::wstring result = DecodeMTF(inputPath);
+    MyFile file(outputPath, "w");
+    file.WriteWideContent(result);
+}
+
+// Burrows-Wheeler transform
+
+void CodecBWT::EncodeBWT(const std::wstring& str, const std::string& outputPath) const
 {
     MyFile file(outputPath, "w");
 
@@ -389,7 +382,7 @@ void FileCodec::EncodeBWT(const std::wstring& str, const std::string& outputPath
     delete[] permutations;
 }
 
-std::wstring FileCodec::DecodeBWT(const std::string& inputPath) const
+std::wstring CodecBWT::DecodeBWT(const std::string& inputPath) const
 {
     // START READ METADATA
     MyFile file(inputPath, "r");
@@ -427,9 +420,23 @@ std::wstring FileCodec::DecodeBWT(const std::string& inputPath) const
     return permutations[indexOfOriginal];
 }
 
-// ==============================================================================
+void CodecBWT::Encode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile file(inputPath, "r");
+    std::wstring inputStr = file.ReadWideContent();
+    EncodeBWT(inputStr, outputPath);
+}
 
-void FileCodec::EncodeAFM(const std::wstring& str, const std::string& outputPath) const
+void CodecBWT::Decode(const std::string& inputPath, const std::string& outputPath) const
+{
+    std::wstring result = DecodeBWT(inputPath);
+    MyFile file(outputPath, "w");
+    file.WriteWideContent(result);
+}
+
+// Ariphmetical encoding
+
+void CodecAFM::EncodeAFM(const std::wstring& str, const std::string& outputPath) const
 {
     auto encode = [](const std::wstring& str, MyFile& file) {
         // initialize sorted alphabet and sorted frequencies
@@ -505,7 +512,7 @@ void FileCodec::EncodeAFM(const std::wstring& str, const std::string& outputPath
     }
 }
 
-std::wstring FileCodec::DecodeAFM(const std::string& inputPath) const
+std::wstring CodecAFM::DecodeAFM(const std::string& inputPath) const
 {
     auto decode = [](const wchar_t alhpabet[10], int8_t alphabetSize, const double frequencies[9], double resultValue, int8_t countOfIterations) {
         // inicialize segments
@@ -579,6 +586,20 @@ std::wstring FileCodec::DecodeAFM(const std::string& inputPath) const
     }
 
     return result;
+}
+
+void CodecAFM::Encode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile file(inputPath, "r");
+    std::wstring inputStr = file.ReadWideContent();
+    EncodeAFM(inputStr, outputPath);
+}
+
+void CodecAFM::Decode(const std::string& inputPath, const std::string& outputPath) const
+{
+    std::wstring result = DecodeAFM(inputPath);
+    MyFile file(outputPath, "w");
+    file.WriteWideContent(result);
 }
 
 // END IMPLEMENTATION

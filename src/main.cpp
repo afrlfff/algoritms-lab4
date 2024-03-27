@@ -5,7 +5,6 @@
 #include <string>
 #include <filesystem> // C++ 17 and more
 #include <cstdlib>
-//#include <windows.h>
 
 #include "include/FileCodec.h"
 #include "include/TextTools.h"
@@ -24,24 +23,27 @@ void ImageToText(const fs::path& inputPath);
 void AllImagesToText();
 void EncodeAll(FileCodec& codec);
 void DecodeAll(FileCodec& codec);
-void MakeResultsFile(const std::string& key);
-void MakeGraphics(const std::string& key);
+void MakeResultsFile(const std::string& codecName);
+void MakeGraphics(const std::string& codecName);
 
 int main()
 {
     std::cout << "Start" << std::endl;
 
-    FileCodec codecRLE("RLE");
+    CodecAFM codec;
 
     // TEST CODE
 
-    //EncodeTxt("AFM", "../input/txt/temp.txt", "../output/AFM/temp_encoded.txt");
-    //DecodeTxt("AFM", "../output/AFM/temp_encoded.txt", "../output/AFM/temp_decoded.txt");
+    EncodeAll(codec);
+    DecodeAll(codec);
 
-    //codecRLE.Encode("..\\input\\txt\\temp.txt", "..\\output\\RLE\\temp_encoded.bin");
-    //codecRLE.Decode("..\\output\\RLE\\temp_encoded.bin", "..\\output\\RLE\\temp_decoded.txt");
+    //EncodeTxt("AFM", "../input/txt/blackwhite.txt", "../output/AFM/blackwhite_encoded.txt");
+    //DecodeTxt("AFM", "../output/AFM/blackwhite_encoded.txt", "../output/AFM/blackwhite_decoded.txt");
 
-    MakeResultsFile("RLE");
+    //codec.Encode("..\\input\\txt\\blackwhite.txt", "..\\output\\AFM\\blackwhite_encoded.bin");
+    //codec.Decode("..\\output\\AFM\\blackwhite_encoded.bin", "..\\output\\AFM\\blackwhite_decoded.txt");
+
+    //MakeResultsFile("RLE");
 
     return 0;
 }
@@ -68,12 +70,13 @@ void AllImagesToText()
 
 void EncodeAll(FileCodec& codec)
 {
-    // BIN IMPLEMENTATION
+    // create directory if it doesn't exist
+    fs::create_directory(OUTPUT_DIR / "encoded");
+    
     for (const auto& entry : fs::directory_iterator(INPUT_DIR / "txt")) {
         fs::path inputPath = entry.path();
 
-        fs::path outputPath = OUTPUT_DIR / codec.getKey() / (inputPath.stem().string() + "_encoded.bin"); 
-        fs::create_directory(OUTPUT_DIR / codec.getKey()); // create directory if it doesn't exist  
+        fs::path outputPath = OUTPUT_DIR / "encoded" / (inputPath.stem().string() + "_encoded.bin"); 
 
         codec.Encode(inputPath.string(), outputPath.string());
     }
@@ -81,37 +84,47 @@ void EncodeAll(FileCodec& codec)
 
 void DecodeAll(FileCodec& codec)
 {
-    // BIN IMPLEMENTATION
-    for (const auto& entry : fs::directory_iterator(OUTPUT_DIR / codec.getKey())) {
-        fs::path inputPath = entry.path();
-        std::string fileName = inputPath.stem().string();
-        if ((fileName.find("_encoded") == std::string::npos)) continue;
+    // create directory if it doesn't exist
+    fs::create_directory(OUTPUT_DIR / "decoded");
+    char decodedPart[12 + 1] = "_decoded.txt";
 
-        std::string clearFileName = "";
-        for (int i = 0; i < (fileName.size() - 8); i++) {
-            clearFileName += fileName[i];
+    for (const auto& entry : fs::directory_iterator(OUTPUT_DIR / "encoded")) {
+        fs::path inputPath = entry.path(); // "..._encoded.bin"
+
+        std::string fileName = inputPath.stem().string(); // ".._encoded"
+
+        // -8 to remove "_encoded"
+        // +12  to add "_decoded.txt"
+        int newFileNameSize = fileName.size() - 8 + 12 + 1;
+
+        // make new file name and output path
+        int i = 0;
+        std::string newFileName(newFileNameSize, '\0');
+        for (i = 0; i < (newFileNameSize - 13); ++i) {
+            newFileName[i] = fileName[i];
+        } for (int j = 0; j < 12; ++j) {
+            newFileName[i + j] = decodedPart[j];
         }
-
-        fs::path outputPath = OUTPUT_DIR / codec.getKey() / (clearFileName + "_decoded.txt");
-        fs::create_directory(OUTPUT_DIR / codec.getKey()); // create directory if it doesn't exist
+        newFileName[newFileNameSize] = '\0';
+        fs::path outputPath = OUTPUT_DIR / "decoded" / newFileName; // "..._decoded.txt"
 
         codec.Decode(inputPath.string(), outputPath.string());
     }
 }
 
-void MakeResultsFile(const std::string& key)
+void MakeResultsFile(const std::string& codecName)
 {
     // BIN IMPLEMENTATION
-    std::ofstream file((OUTPUT_DIR / ("results_"+ key + ".txt")));
+    std::ofstream file((OUTPUT_DIR / ("results_"+ codecName + ".txt")));
     file << "fileName entropyRatio startSize[kb] encodedSize[kb] EncodingRatio decodingRatio";
 
     for (const auto& entry : fs::directory_iterator(INPUT_DIR / ("txt"))) {
         fs::path inputPath = entry.path();
-        std::string fileName = inputPath.stem().string();
+        std::string fileName = inputPath.stem().string(); // name with no extension
 
         fs::path pathToOriginal = inputPath;
-        fs::path pathToEncoded = (OUTPUT_DIR / key / (fileName + "_encoded.bin"));
-        fs::path pathToDecoded = (OUTPUT_DIR / key / (fileName + "_decoded.txt"));
+        fs::path pathToEncoded = (OUTPUT_DIR / "encoded" / (fileName + "_encoded.bin"));
+        fs::path pathToDecoded = (OUTPUT_DIR / "decoded" / (fileName + "_decoded.txt"));
 
         MyFile fileOriginal(pathToOriginal.string(), "r");
         std::wstring textOriginal = fileOriginal.ReadWideContent();
@@ -119,20 +132,20 @@ void MakeResultsFile(const std::string& key)
         file << '\n';
         file << fileName + ' ' + 
                 std::to_string(TextEntropy(textOriginal)) + ' ' + 
-                std::to_string(fs::file_size(pathToOriginal) / static_cast<double>(1024)) + ' ' + 
-                std::to_string(fs::file_size(pathToEncoded) / static_cast<double>(1024)) + ' ' + 
+                std::to_string(fs::file_size(pathToOriginal) / 1024.0) + ' ' + 
+                std::to_string(fs::file_size(pathToEncoded) / 1024.0) + ' ' + 
                 std::to_string(EncodingRatio(pathToOriginal, pathToEncoded)) + ' ' + 
                 std::to_string(DecodingRatio(pathToOriginal, pathToDecoded));
     }
     file.close();
 }
 
-void MakeGraphics(const std::string& key)
+void MakeGraphics(const std::string& codecName)
 {
-    fs::path inputPath = OUTPUT_DIR / ("results_" + key + ".txt");
+    fs::path inputPath = OUTPUT_DIR / ("results_" + codecName + ".txt");
     if (!fs::exists(inputPath)) {
         std::cout << "Error: File " 
-            << "results_" + key + ".txt" 
+            << "results_" + codecName + ".txt" 
             << " doesn't exist" << std::endl;
         return;
     }
