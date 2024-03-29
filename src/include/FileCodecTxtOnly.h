@@ -4,6 +4,7 @@
 #include <set> // makes ordered set
 #include <algorithm> // sorting
 #include <cstdint> // for int8_t, int16_t ...
+#include <stack> // for huffman algorithm
 
 #include "MyFile.h"
 #include "TextTools.h"
@@ -70,6 +71,20 @@ class CodecAFMTxtOnly : public FileCodecTxtOnly
 {
     std::wstring EncodeAFM(const std::wstring& str) const;
     std::wstring DecodeAFM(const std::wstring& str) const;
+public:
+    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
+    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+};
+
+// Huffman encoding
+/**
+ * This class made only to test encode and decode functions
+ * to clearly see how it works in .txt files insted of using .bin files
+*/
+class CodecHUFTxtOnly : public FileCodecTxtOnly
+{
+    std::wstring EncodeHUF(const std::wstring& str) const;
+    std::wstring DecodeHUF(const std::wstring& str) const;
 public:
     void Encode(const std::string& inputPath, const std::string& outputPath) const override;
     void Decode(const std::string& inputPath, const std::string& outputPath) const override;
@@ -436,7 +451,7 @@ std::wstring CodecAFMTxtOnly::EncodeAFM(const std::wstring& str) const
         // initialize sorted alphabet and sorted frequencies
         wchar_t* alphabet = Alphabet(str);
         int size = wcslen(alphabet);
-        std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
+        std::pair<wchar_t, double>* frequencies = CharFrequencyPair(alphabet, size, str);
         std::sort(frequencies, frequencies + size);
 
         // leave in frequencies only 2 characters after the decimal point
@@ -465,7 +480,7 @@ std::wstring CodecAFMTxtOnly::EncodeAFM(const std::wstring& str) const
         // make result
         std::wstring result = std::to_wstring(size) + L'\n';
         for (int i = 0; i < size; ++i) {
-            result.push_back(alphabet[i]);
+            result.push_back(frequencies[i].first);
         }
         result.push_back('\n'); 
         for (int i = 0; i < size; ++i){
@@ -639,6 +654,181 @@ void CodecAFMTxtOnly::Decode(const std::string& inputPath, const std::string& ou
     MyFile inputFile(inputPath, "r");
     std::wstring encodedStr = inputFile.ReadWideContent();
     std::wstring decodedStr = DecodeAFM(encodedStr);
+
+    MyFile outputFile(outputPath, "w");
+    outputFile.WriteWideContent(decodedStr);
+}
+
+// Huffman encoding
+
+std::wstring CodecHUFTxtOnly::EncodeHUF(const std::wstring& str) const
+{
+    auto getCodeByChar = [](const std::pair<wchar_t, std::wstring>* charCodePair, 
+                            int size, wchar_t c) -> std::wstring {
+        int left = 0, right = size - 1;
+        while (left <= right) {
+            int mid = (left + right) / 2;
+            if (charCodePair[mid].first == c) {
+                return charCodePair[mid].second;
+            }
+            if (charCodePair[mid].first < c) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+        return L"";
+    };
+
+    struct HuffmanNode {
+        std::wstring chars;
+        double freq;
+        HuffmanNode() = default;
+        HuffmanNode(const std::wstring& chars, const double freq) : chars(chars), freq(freq) {}
+        HuffmanNode(const wchar_t c, const double freq) : chars(std::wstring(1, c)), freq(freq) {}
+        bool operator<=(const HuffmanNode& other) const {
+            if ((freq < other.freq) || 
+                (freq - other.freq < 0.0000001)) {
+                return true;
+            }
+            return false;
+        }
+    };
+
+    // initialize sorted char-frequency pairs
+    wchar_t* alphabet = Alphabet(str);
+    int alphabetSize = wcslen(alphabet);
+    std::pair<wchar_t, double>* charFrequencyPair = CharFrequencyPair(alphabet, alphabetSize, str);
+
+    // sort by frequencies
+    std::sort(charFrequencyPair, charFrequencyPair + alphabetSize, [](const std::pair<wchar_t, double>& a, const std::pair<wchar_t, double>& b) {
+        return a.second < b.second;
+    });
+
+    // initialize all necessary data structures
+    std::stack<HuffmanNode> treeNodes;
+    HuffmanNode* freeNodes = new HuffmanNode[alphabetSize * 2]; // use size * 2 as a maximum possible number of nodes
+    for (int i = 0; i < alphabetSize; ++i) {
+        freeNodes[i] = HuffmanNode(charFrequencyPair[i].first, charFrequencyPair[i].second);
+    } for (int i = alphabetSize; i < alphabetSize * 2; ++i) {
+        freeNodes[i] = HuffmanNode(L"-", 0.0);
+    }
+
+    // build Huffman tree (fill treeNodes)
+    int freeNodesSize = alphabetSize;
+    HuffmanNode left, right, parent;
+    while(freeNodesSize > 1) {
+        left = freeNodes[0];
+        right = freeNodes[1];
+        parent = HuffmanNode(left.chars + right.chars, left.freq + right.freq);
+        
+        // remove right and left nodes from freeNodes
+        for (int i = 2; i < freeNodesSize; ++i) {
+            freeNodes[i - 2] = freeNodes[i];
+        }
+        freeNodesSize -= 2;
+
+        // insert parent into freeNodes
+        for (int i = 0; i <= freeNodesSize; ++i) {
+            if (parent <= freeNodes[i]) {
+                // insert before freeNodes[i]
+                for (int j = i; j < freeNodesSize + 1; ++j) {
+                    HuffmanNode temp = freeNodes[j];
+                    freeNodes[j] = parent;
+                    parent = temp; // will use parent as a temp2
+                }
+                break;
+            }
+            if (i == freeNodesSize) {
+                // if parent should be inserted at the end
+                freeNodes[i] = parent;
+            }
+        }
+        ++freeNodesSize;
+
+        // add children to treeNodes
+        treeNodes.push(right);
+        treeNodes.push(left);
+    }
+
+    // get char codes
+    std::pair<wchar_t, std::wstring>* charCodePair = new std::pair<wchar_t, std::wstring>[alphabetSize];
+    std::wstring code;
+    char currentDigit = '0';
+    int charIndex = 0;
+    while (!treeNodes.empty()) {
+        HuffmanNode node = treeNodes.top();
+        if (node.chars.size() == 1) {
+            // if the node is a leaf
+            charCodePair[charIndex].first = node.chars[0];
+            charCodePair[charIndex].second = code + std::wstring(1, currentDigit);
+            ++charIndex;
+        } else {
+            // if the node is not a leaf
+            code.push_back('1');
+        }
+        currentDigit = (currentDigit == '0') ? '1' : '0';
+        treeNodes.pop();
+    }
+
+    // special case
+    if (alphabetSize == 1) {
+        charCodePair[0].first = alphabet[0];
+        charCodePair[0].second = L"0";
+    }
+
+    // sort charCodePair by char for correct decoding
+    std::sort(charCodePair, charCodePair + alphabetSize, [](const std::pair<wchar_t, std::wstring>& a, const std::pair<wchar_t, std::wstring>& b) {
+        return a.first < b.first;
+    });
+
+    // write results
+
+    std::wstring encodedStr;
+    // write alphabet size
+    encodedStr += std::to_wstring(alphabetSize) + L'\n';
+    // write alphabet
+    for (int i = 0; i < alphabetSize; ++i) {
+        encodedStr += charCodePair[i].first;
+    }
+    encodedStr += L'\n';
+    // write char codes
+    for (int i = 0; i < alphabetSize; ++i) {
+        encodedStr += charCodePair[i].second + L' ';
+    }
+    encodedStr += L'\n';
+    // write length of the string
+    encodedStr += std::to_wstring(str.size()) + L'\n';
+    // write encoded string
+    for (size_t i = 0; i < str.size(); ++i) {
+        encodedStr += getCodeByChar(charCodePair, alphabetSize, str[i]) + L' ';
+    }
+
+    delete[] alphabet; delete[] charFrequencyPair;
+    delete[] freeNodes; delete[] charCodePair;
+    return encodedStr;
+}
+
+std::wstring CodecHUFTxtOnly::DecodeHUF(const std::wstring& str) const
+{
+    return L"";
+}
+
+void CodecHUFTxtOnly::Encode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile inputFile(inputPath, "r");
+    std::wstring originalStr = inputFile.ReadWideContent();
+    std::wstring encodedStr = EncodeHUF(originalStr);
+
+    MyFile outputFile(outputPath, "w");
+    outputFile.WriteWideContent(encodedStr);
+}
+
+void CodecHUFTxtOnly::Decode(const std::string& inputPath, const std::string& outputPath) const
+{
+    MyFile inputFile(inputPath, "r");
+    std::wstring encodedStr = inputFile.ReadWideContent();
+    std::wstring decodedStr = DecodeHUF(encodedStr);
 
     MyFile outputFile(outputPath, "w");
     outputFile.WriteWideContent(decodedStr);
