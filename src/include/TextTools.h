@@ -13,7 +13,10 @@ double TextEntropy(const std::wstring& str);
 wchar_t* Alphabet(const std::wstring& str);
 
 // return frequencies of the characters
-std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
+//std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
+
+// return frequencies of the characters in order of the alphabet
+double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
 
 // return index of the character in the alphabet
 unsigned GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c);
@@ -74,6 +77,43 @@ wchar_t* Alphabet(const std::wstring& str)
     return alphabet;
 }
 
+double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str)
+{
+    double* frequencies = new double[size];
+    for (size_t i = 0; i < size; ++i) {
+        frequencies[i] = 0;
+    }
+
+    size_t countAll = 0;
+    for (wchar_t c : str) {
+        ++frequencies[GetIndex(alphabet, size, c)];
+        ++countAll;
+    } for (size_t i = 0; i < size; ++i) {
+        frequencies[i] /= countAll;
+    }
+
+    return frequencies;
+}
+
+std::pair<wchar_t, double>* CharFrequencyPairs(wchar_t* alphabet, const size_t size, const std::wstring& str)
+{
+    std::pair<wchar_t, double>* frequencies = new std::pair<wchar_t, double>[size];
+    for (int i = 0; i < size; i++) {
+        frequencies[i].first = alphabet[i];
+        frequencies[i].second = 0;
+    }
+
+    size_t countAll = 0;
+    for (wchar_t c : str) {
+        ++frequencies[GetIndex(alphabet, size, c)].second;
+        ++countAll;
+    } for (int i = 0; i < size; i++) {
+        frequencies[i].second /= countAll;
+    }
+
+    return frequencies;
+}
+
 unsigned GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c)
 {
     for (int i = 0; i < size; ++i) {
@@ -85,10 +125,10 @@ unsigned GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c)
     return 0;
 }
 
-unsigned GetIndex(const std::pair<wchar_t, double>* frequencies, const size_t size, wchar_t c)
+unsigned GetIndex(const std::pair<wchar_t, double>* charFrequenciesPair, const size_t size, wchar_t c)
 {
     for (int i = 0; i < size; ++i) {
-        if (frequencies[i].first == c) {
+        if (charFrequenciesPair[i].first == c) {
             return i;
         }
     }
@@ -113,41 +153,22 @@ unsigned GetIndexInSorted(const wchar_t* alphabet, const size_t size, wchar_t c)
     return -1;
 }
 
-unsigned GetIndexInSorted(const std::pair<wchar_t, double>* frequencies, const size_t size, wchar_t c)
+unsigned GetIndexInSorted(const std::pair<wchar_t, double>* charFrequenciesPair, const size_t size, wchar_t c)
 {
     // binary search
     int left = 0, right = size - 1;
     while (left <= right) {
         int mid = (left + right) / 2;
-        if (frequencies[mid].first == c) {
+        if (charFrequenciesPair[mid].first == c) {
             return mid;
         }
-        if (frequencies[mid].first < c) {
+        if (charFrequenciesPair[mid].first < c) {
             left = mid + 1;
         } else {
             right = mid - 1;
         }
     }
     return -1;
-}
-
-std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str)
-{
-    std::pair<wchar_t, double>* frequencies = new std::pair<wchar_t, double>[size];
-    for (int i = 0; i < size; i++) {
-        frequencies[i].first = alphabet[i];
-        frequencies[i].second = 0;
-    }
-
-    size_t countAll = 0;
-    for (wchar_t c : str) {
-        ++frequencies[GetIndex(alphabet, size, c)].second;
-        ++countAll;
-    } for (int i = 0; i < size; i++) {
-        frequencies[i].second /= countAll;
-    }
-
-    return frequencies;
 }
 
 double RepeatingCharSeqRatio(const std::wstring& str){

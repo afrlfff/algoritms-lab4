@@ -442,27 +442,27 @@ void CodecAFM::EncodeAFM(const std::wstring& str, const std::string& outputPath)
         // initialize sorted alphabet and sorted frequencies
         wchar_t* alphabet = Alphabet(str);
         int8_t size = wcslen(alphabet);
-        std::pair<wchar_t, double>* frequencies = Frequencies(alphabet, size, str);
-        std::sort(frequencies, frequencies + size);
+        std::pair<wchar_t, double>* charFrequencies = CharFrequencyPairs(alphabet, size, str);
+        std::sort(charFrequencies, charFrequencies + size);
 
         // leave in frequencies only 2 characters after the decimal point
         // (for correct decoding)
         for (int8_t i = 0; i < size; ++i) {
-            frequencies[i].second = ((int8_t)(frequencies[i].second * 100)) / 100.0;
+            charFrequencies[i].second = ((int8_t)(charFrequencies[i].second * 100)) / 100.0;
         }
 
         // inicialize segments
         //// (array of bounds points from 0 to 1)
         double* segments = new double[size + 1]{ 0 };
         for (int i = 1; i < size; ++i) {
-            segments[i] = frequencies[i - 1].second + segments[i - 1];
+            segments[i] = charFrequencies[i - 1].second + segments[i - 1];
         }
         segments[size] = 1;
 
         // encode (get final left and right bounds)
         double leftBound = 0, rightBound = 1, distance;
         for (wchar_t c : str) {
-            int8_t index = GetIndexInSorted(frequencies, size, c);
+            int8_t index = GetIndexInSorted(charFrequencies, size, c);
             distance = rightBound - leftBound;
             rightBound = leftBound + segments[index + 1] * distance;
             leftBound = leftBound + segments[index] * distance;
@@ -473,12 +473,12 @@ void CodecAFM::EncodeAFM(const std::wstring& str, const std::string& outputPath)
 
         // write alphabet
         for (int8_t i = 0; i < size; ++i) {
-            file.AppendWideCharBinary(alphabet[i]);
+            file.AppendWideCharBinary(charFrequencies[i].first);
         }
 
         // write frequencies
         for (int8_t i = 0; i < size; ++i){
-            file.AppendInt8Binary((int8_t)((frequencies[i].second) * 100));
+            file.AppendInt8Binary((int8_t)((charFrequencies[i].second) * 100));
         }
 
         double resultValue = (rightBound + leftBound) / 2;
@@ -486,7 +486,7 @@ void CodecAFM::EncodeAFM(const std::wstring& str, const std::string& outputPath)
         //// cause int32_t value can store any number with 9 digits 
         file.AppendInt32Binary((int32_t)(resultValue * 1000000000));
 
-        delete[] alphabet; delete[] frequencies; delete[] segments;
+        delete[] alphabet; delete[] charFrequencies; delete[] segments;
     };
 
     MyFile file(outputPath, "w");

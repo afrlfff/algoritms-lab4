@@ -18,6 +18,7 @@ const fs::path INPUT_DIR = fs::current_path() / "..\\input";
 const fs::path OUTPUT_DIR = fs::current_path() / "..\\output";
 
 // HELPER FUNCTIONS
+void ClearOutputDirectory();
 void ImageToText(const fs::path& inputPath);
 void AllImagesToText();
 void EncodeAll(FileCodec& codec);
@@ -27,13 +28,14 @@ void MakeGraphics(const std::string& codecName);
 
 int main()
 {
+    ClearOutputDirectory();
     std::cout << "Start" << std::endl;
 
     // TEST CODE
 
-    CodecAFMTxtOnly codec;
+    CodecHUFTxtOnly codec;
     codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.txt");
-    codec.Decode("..\\output\\encoded\\temp_encoded.txt", "..\\output\\decoded\\temp_decoded.txt");
+    //codec.Decode("..\\output\\encoded\\temp_encoded.txt", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 
@@ -41,6 +43,17 @@ int main()
 }
 
 // START IMPLEMETATION
+
+void ClearOutputDirectory()
+{
+    fs::remove_all(OUTPUT_DIR / "encoded");
+    fs::remove_all(OUTPUT_DIR / "decoded");
+    fs::remove_all(OUTPUT_DIR / "graphics");
+
+    fs::create_directory(OUTPUT_DIR / "encoded");
+    fs::create_directory(OUTPUT_DIR / "decoded");
+    fs::create_directory(OUTPUT_DIR / "graphics");
+}
 
 void ImageToText(const fs::path& inputPath)
 {
