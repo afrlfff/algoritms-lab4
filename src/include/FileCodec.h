@@ -2,7 +2,7 @@
 
 #include <string>
 #include <set> // makes ordered set
-#include <list>
+#include <queue>
 #include <algorithm> // sorting
 #include <cstdint> // for int8_t, int16_t ...
 #include <utility> // for std::pair
@@ -33,8 +33,8 @@ public:
 protected:
     struct dataRLE {
         size_t strSize;
-        std::list<std::pair<int8_t, std::wstring>> encodedWstr;
-        dataRLE(size_t _strSize, std::list<std::pair<int8_t, std::wstring>> _encodedWstr) : strSize(_strSize), encodedWstr(_encodedWstr) {}
+        std::queue<std::pair<int8_t, std::wstring>> encodedWstr;
+        dataRLE(size_t _strSize, std::queue<std::pair<int8_t, std::wstring>> _encodedWstr) : strSize(_strSize), encodedWstr(_encodedWstr) {}
     };
 
     // Encodes the input wstring with RLE algorithm and returns the data to write in the output file
@@ -114,7 +114,7 @@ std::string FileCodec::WstringToString(const std::wstring& wstr) const {
 
 CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
 {
-    std::list<std::pair<int8_t, std::wstring>> encodedWstr;
+    std::queue<std::pair<int8_t, std::wstring>> encodedWstr;
 
     int countIdent = 1; // current count of repeating identical characters
     int countUnique = 1; // current count of repeating unique characters
@@ -135,7 +135,7 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
                 --countUnique; // because "prev" was read as unique
 
                 countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-                encodedWstr.push_back(std::make_pair(-countUnique, uniqueSeq));
+                encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
 
                 countUnique = 1;
             }
@@ -152,11 +152,11 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
             if (countIdent > 1) {
                 if (countIdent >= maxPossibleNumber) {
                     for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                        encodedWstr.push_back(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
+                        encodedWstr.push(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
                     }
                 }
                 if (countIdent % maxPossibleNumber != 0) {
-                    encodedWstr.push_back(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
+                    encodedWstr.push(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
                 }
                 flag = true;
                 countIdent = 1;
@@ -181,7 +181,7 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
 
             // limit length of sequence
             if (countUnique == maxPossibleNumber) {
-                encodedWstr.push_back(std::make_pair(-countUnique, uniqueSeq));
+                encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
                 flag = true;
                 countUnique = 0;
                 uniqueSeq = L"";
@@ -194,16 +194,16 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
     if (countIdent > 1) {
         if (countIdent >= maxPossibleNumber) {
             for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                encodedWstr.push_back(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
+                encodedWstr.push(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
             }
         }
         if (countIdent % maxPossibleNumber != 0) {
-            encodedWstr.push_back(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
+            encodedWstr.push(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
         }
     }
     if (countUnique > 0) { 
         countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-        encodedWstr.push_back(std::make_pair(-countUnique, uniqueSeq));
+        encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
     }
 
     return dataRLE(inputStr.size(), encodedWstr);
@@ -287,16 +287,20 @@ void CodecRLE::Encode(const char* inputPath, const char* outputPath) const
     if (FileUtils::ContainsWideChars(inputPath)) {
         FileUtils::AppendCharBinary(outputFile, 'w');
         FileUtils::AppendInt64Binary(outputFile, encodingData.strSize);
-        for (auto it = encodingData.encodedWstr.begin(); it != encodingData.encodedWstr.end(); ++it) {
-            FileUtils::AppendInt8Binary(outputFile, it->first);
-            FileUtils::AppendWideStrBinary(outputFile, it->second);
+        while (!encodingData.encodedWstr.empty()) {
+            auto elem = encodingData.encodedWstr.front();
+            FileUtils::AppendInt8Binary(outputFile, elem.first);
+            FileUtils::AppendWideStrBinary(outputFile, elem.second);
+            encodingData.encodedWstr.pop();
         }
     } else {
         FileUtils::AppendCharBinary(outputFile, 'c');
         FileUtils::AppendInt64Binary(outputFile, encodingData.strSize);
-        for (auto it = encodingData.encodedWstr.begin(); it != encodingData.encodedWstr.end(); ++it) {
-            FileUtils::AppendInt8Binary(outputFile, it->first);
-            FileUtils::AppendStrBinary(outputFile, WstringToString(it->second));
+        while (!encodingData.encodedWstr.empty()) {
+            auto elem = encodingData.encodedWstr.front();
+            FileUtils::AppendInt8Binary(outputFile, elem.first);
+            FileUtils::AppendStrBinary(outputFile, WstringToString(elem.second));
+            encodingData.encodedWstr.pop();
         }
     }
     FileUtils::CloseFile(outputFile);

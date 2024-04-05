@@ -28,15 +28,18 @@ void MakeGraphics(const std::string& codecName);
 
 int main()
 {
-    ClearOutputDirectory();
+    //ClearOutputDirectory();
     std::cout << "Start" << std::endl;
 
     // TEST CODE
 
     CodecRLE codec;
 
-    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
-    codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
+    //EncodeAll(codec);
+    //DecodeAll(codec);
+    MakeResultsFile("RLE");
+    //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
+    //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 
