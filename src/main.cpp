@@ -23,12 +23,12 @@ void ImageToText(const fs::path& inputPath);
 void AllImagesToText();
 void EncodeAll(FileCodec& codec);
 void DecodeAll(FileCodec& codec);
-void MakeResultsFile(const std::string& codecName);
+void MakeResultsFile();
 void MakeGraphics(const std::string& codecName);
 
 int main()
 {
-    //ClearOutputDirectory();
+    ClearOutputDirectory();
     std::cout << "Start" << std::endl;
 
     // TEST CODE
@@ -37,9 +37,10 @@ int main()
 
     //EncodeAll(codec);
     //DecodeAll(codec);
-    MakeResultsFile("RLE");
-    //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
-    //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
+    //MakeResultsFile();
+
+    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
+    codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 
@@ -121,10 +122,10 @@ void DecodeAll(FileCodec& codec)
     }
 }
 
-void MakeResultsFile(const std::string& codecName)
+void MakeResultsFile()
 {
     // BIN IMPLEMENTATION
-    std::ofstream file((OUTPUT_DIR / ("results_"+ codecName + ".txt")));
+    std::ofstream file((OUTPUT_DIR / ("results.txt")));
     file << "fileName entropyRatio startSize[kb] encodedSize[kb] EncodingRatio decodingRatio";
 
     for (const auto& entry : fs::directory_iterator(INPUT_DIR / ("txt"))) {

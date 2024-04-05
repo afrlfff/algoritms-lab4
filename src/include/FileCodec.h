@@ -21,6 +21,7 @@ protected:
     FileCodec() = default;
     char WideCharToChar(const wchar_t& wc) const;
     std::string WstringToString(const std::wstring& wstr) const;
+    int8_t Int16ToInt8(const int16_t& value) const;
 };
 
 // Run-length encoding
@@ -40,27 +41,35 @@ protected:
     // Encodes the input wstring with RLE algorithm and returns the data to write in the output file
     dataRLE GetDataRLE(const std::wstring& inputStr) const;
     /**
-     * Decodes the RLE encoded part of the file and returns the decoded string
+     * Decodes the RLE encoded part of the file and returns the decoded string(or wstring)
      * Starts decoding from the current pointer position within the file and ends at the end of the encoded part
      */
-    std::string DecodeStringRLE(FILE* inputFile) const;
-    /**
-     * Decodes the RLE encoded part of the file and returns the decoded wstring
-     * Starts decoding from the current pointer position within the file and ends at the end of the encoded part
-     */
-    std::wstring DecodeWstringRLE(FILE* inputFile) const;
+    template <typename stringType>
+    stringType DecodeRLE(FILE* inputFile) const;
 };
 
-/* // Move-to-front
+// Move-to-front
 class CodecMTF : public FileCodec
 {
-    void EncodeMTF(const std::wstring& str, const std::string& outputPath) const;
-    std::wstring DecodeMTF(const std::string& inputPath) const;
 public:
-    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
-    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+    CodecMTF() = default;
+    void Encode(const char* inputPath, const char* outputPath) const override;
+    void Decode(const char* inputPath, const char* outputPath) const override;
+protected:
+    struct dataMTF {
+        int16_t alphabetSize;
+        std::wstring alphabet;
+        int64_t strSize;
+        std::vector<int16_t> codes;
+        dataMTF(int16_t _alphabetSize, std::wstring _alphabet, int64_t _strSize, std::vector<int16_t> _codes) : alphabetSize(_alphabetSize), alphabet(_alphabet), strSize(_strSize), codes(_codes) {}
+    };
+
+    dataMTF GetDataMTF(const std::wstring& inputStr) const;
+    std::string DecodeStringMTF(FILE* inputFile) const;
+    std::wstring DecodeWstringMTF(FILE* inputFile) const;
 };
 
+/*
 // Burrows-Wheeler transform
 class CodecBWT : public FileCodec
 {
@@ -98,7 +107,7 @@ public:
 // File Codec
 
 char FileCodec::WideCharToChar(const wchar_t& wc) const {
-    return (uint8_t)(wc);
+    return (char)(wc);
 };
 
 std::string FileCodec::WstringToString(const std::wstring& wstr) const {
@@ -108,6 +117,10 @@ std::string FileCodec::WstringToString(const std::wstring& wstr) const {
     }
     return newStr;
 };
+
+int8_t FileCodec::Int16ToInt8(const int16_t& value) const {
+    return (int8_t)(value);
+}
 
 // ==================================================================================
 // Run-length encoding
@@ -209,9 +222,10 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
     return dataRLE(inputStr.size(), encodedWstr);
 }
 
-std::wstring CodecRLE::DecodeWstringRLE(FILE* inputFile) const
+template <typename stringType>
+stringType CodecRLE::DecodeRLE(FILE* inputFile) const
 {
-    std::wstring decodedStr = L"";
+    stringType decodedStr;
 
     int64_t strSize = FileUtils::ReadInt64Binary(inputFile);
     int64_t counter = 0;
@@ -225,7 +239,11 @@ std::wstring CodecRLE::DecodeWstringRLE(FILE* inputFile) const
         if (number < 0)
         {
             for (int8_t i = 0; i < (-number); ++i) {
-                decodedStr.push_back(FileUtils::ReadWideCharBinary(inputFile));
+                if (std::is_same<stringType, std::wstring>::value) {
+                    decodedStr.push_back(FileUtils::ReadWideCharBinary(inputFile));
+                } else {
+                    decodedStr.push_back(FileUtils::ReadCharBinary(inputFile));
+                }
                 ++counter;
             }
         }
@@ -233,45 +251,18 @@ std::wstring CodecRLE::DecodeWstringRLE(FILE* inputFile) const
         // (sequence of identical symbols)
         else
         {
-            wchar_t c = FileUtils::ReadWideCharBinary(inputFile);
-            for (int8_t i = 0; i < number; ++i) {
-                decodedStr.push_back(c);
-                ++counter;
-            }
-        }
-    }
-
-    return decodedStr;
-}
-
-std::string CodecRLE::DecodeStringRLE(FILE* inputFile) const
-{
-    std::string decodedStr = "";
-
-    int64_t strSize = FileUtils::ReadInt64Binary(inputFile);
-    int64_t counter = 0;
-    int8_t number;
-    while (counter < strSize)
-    {
-        number = FileUtils::ReadInt8Binary(inputFile);
-
-        // if starts with negative number
-        // (sequence of unqiue symbols)
-        if (number < 0)
-        {
-            for (int8_t i = 0; i < (-number); ++i) {
-                decodedStr.push_back(FileUtils::ReadCharBinary(inputFile));
-                ++counter;
-            }
-        }
-        // if starts with positive number
-        // (sequence of identical symbols)
-        else
-        {
-            char c = FileUtils::ReadCharBinary(inputFile);
-            for (int8_t i = 0; i < number; ++i) {
-                decodedStr.push_back(c);
-                ++counter;
+            if (std::is_same<stringType, std::wstring>::value) {
+                wchar_t c = FileUtils::ReadWideCharBinary(inputFile);
+                for (int8_t i = 0; i < number; ++i) {
+                    decodedStr.push_back(c);
+                    ++counter;
+                }
+            } else {
+                char c = FileUtils::ReadCharBinary(inputFile);
+                for (int8_t i = 0; i < number; ++i) {
+                    decodedStr.push_back(c);
+                    ++counter;
+                }
             }
         }
     }
@@ -313,12 +304,12 @@ void CodecRLE::Decode(const char* inputPath, const char* outputPath) const
 
     if (flag == 'w') {
         std::wofstream outputFile = FileUtils::OpenWriteWide(outputPath);
-        std::wstring decodedStr = DecodeWstringRLE(inputFile);
+        std::wstring decodedStr = DecodeRLE<std::wstring>(inputFile);
         FileUtils::AppendWideStr(outputFile, decodedStr);
         FileUtils::CloseFile(outputFile);
     } else { // flag == 'c'
         std::ofstream outputFile = FileUtils::OpenWrite(outputPath);
-        std::string decodedStr = DecodeStringRLE(inputFile);
+        std::string decodedStr = DecodeRLE<std::string>(inputFile);
         FileUtils::AppendStr(outputFile, decodedStr);
         FileUtils::CloseFile(outputFile);
     }
