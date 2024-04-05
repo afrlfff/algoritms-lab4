@@ -5,6 +5,7 @@
 #include <map>
 #include <algorithm> // sorting
 #include <cmath>
+#include <utility> // for std::pair
 
 // Calculate entropy of the string
 double TextEntropy(const std::wstring& str);
@@ -12,11 +13,11 @@ double TextEntropy(const std::wstring& str);
 // return ordered alphabet from the string
 wchar_t* Alphabet(const std::wstring& str);
 
-// return frequencies of the characters
-//std::pair<wchar_t, double>* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
-
 // return frequencies of the characters in order of the alphabet
 double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
+
+// return frequencies of the characters in order of the alphabet
+std::pair<wchar_t, double>* CharFrequencyPairs(wchar_t* alphabet, const size_t size, const std::wstring& str);
 
 // return index of the character in the alphabet
 unsigned GetIndex(const wchar_t* alphabet, const size_t size, wchar_t c);
@@ -99,8 +100,7 @@ std::pair<wchar_t, double>* CharFrequencyPairs(wchar_t* alphabet, const size_t s
 {
     std::pair<wchar_t, double>* frequencies = new std::pair<wchar_t, double>[size];
     for (int i = 0; i < size; i++) {
-        frequencies[i].first = alphabet[i];
-        frequencies[i].second = 0;
+        frequencies[i] = std::make_pair(alphabet[i], 0);
     }
 
     size_t countAll = 0;

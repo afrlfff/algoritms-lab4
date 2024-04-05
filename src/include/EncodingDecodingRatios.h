@@ -3,8 +3,7 @@
 #include <iostream>
 #include <filesystem> // C++ 17 and more
 
-#include "MyFile.h"
-
+#include "FileUtils.h"
 
 double EncodingRatio(const std::wstring& originalStr, const std::wstring& encodedStr)
 {
@@ -40,10 +39,8 @@ double DecodingRatio(const std::wstring& originalStr, const std::wstring& decode
 
 double DecodingRatio(const std::filesystem::path& pathToOriginal, const std::filesystem::path& pathToDecoded)
 {
-    MyFile originalFile(pathToOriginal.string(), "r");
-    MyFile decodedFile(pathToDecoded.string(), "r");
-    std::wstring originalContent = originalFile.ReadWideContent();
-    std::wstring decodedContent = decodedFile.ReadWideContent();
+    std::wstring originalContent = FileUtils::ReadWideContent(pathToOriginal.string().c_str());
+    std::wstring decodedContent = FileUtils::ReadWideContent(pathToDecoded.string().c_str());
 
     return DecodingRatio(originalContent, decodedContent);
 }

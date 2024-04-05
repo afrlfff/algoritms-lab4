@@ -33,9 +33,10 @@ int main()
 
     // TEST CODE
 
-    CodecHUFTxtOnly codec;
-    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.txt");
-    //codec.Decode("..\\output\\encoded\\temp_encoded.txt", "..\\output\\decoded\\temp_decoded.txt");
+    CodecRLE codec;
+
+    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
+    codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 
@@ -83,7 +84,7 @@ void EncodeAll(FileCodec& codec)
 
         fs::path outputPath = OUTPUT_DIR / "encoded" / (inputPath.stem().string() + "_encoded.bin"); 
 
-        codec.Encode(inputPath.string(), outputPath.string());
+        codec.Encode(inputPath.string().c_str(), outputPath.string().c_str());
     }
 }
 
@@ -113,7 +114,7 @@ void DecodeAll(FileCodec& codec)
         newFileName[newFileNameSize] = '\0';
         fs::path outputPath = OUTPUT_DIR / "decoded" / newFileName; // "..._decoded.txt"
 
-        codec.Decode(inputPath.string(), outputPath.string());
+        codec.Decode(inputPath.string().c_str(), outputPath.string().c_str());
     }
 }
 
@@ -131,8 +132,7 @@ void MakeResultsFile(const std::string& codecName)
         fs::path pathToEncoded = (OUTPUT_DIR / "encoded" / (fileName + "_encoded.bin"));
         fs::path pathToDecoded = (OUTPUT_DIR / "decoded" / (fileName + "_decoded.txt"));
 
-        MyFile fileOriginal(pathToOriginal.string(), "r");
-        std::wstring textOriginal = fileOriginal.ReadWideContent();
+        std::wstring textOriginal = FileUtils::ReadWideContent(pathToOriginal.string().c_str());
 
         file << '\n';
         file << fileName + ' ' + 
