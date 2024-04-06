@@ -39,8 +39,8 @@ int main()
     //DecodeAll(codec);
     //MakeResultsFile();
 
-    codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
-    codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
+    //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
+    //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     //MakeResultsFile("RLE");
 

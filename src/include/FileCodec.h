@@ -32,18 +32,16 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
+    template <typename stringType>
     struct dataRLE {
         size_t strSize;
-        std::queue<std::pair<int8_t, std::wstring>> encodedWstr;
-        dataRLE(size_t _strSize, std::queue<std::pair<int8_t, std::wstring>> _encodedWstr) : strSize(_strSize), encodedWstr(_encodedWstr) {}
+        std::queue<std::pair<int8_t, stringType>> encodedStr;
+        dataRLE(size_t _strSize, std::queue<std::pair<int8_t, stringType>> _encodedStr) : strSize(_strSize), encodedStr(_encodedStr) {}
     };
 
     // Encodes the input wstring with RLE algorithm and returns the data to write in the output file
-    dataRLE GetDataRLE(const std::wstring& inputStr) const;
-    /**
-     * Decodes the RLE encoded part of the file and returns the decoded string(or wstring)
-     * Starts decoding from the current pointer position within the file and ends at the end of the encoded part
-     */
+    template <typename stringType, typename equalCharType>
+    dataRLE<stringType> GetDataRLE(const stringType& inputStr) const;
     template <typename stringType>
     stringType DecodeRLE(FILE* inputFile) const;
 };
@@ -64,6 +62,7 @@ protected:
         dataMTF(int16_t _alphabetSize, std::wstring _alphabet, int64_t _strSize, std::vector<int16_t> _codes) : alphabetSize(_alphabetSize), alphabet(_alphabet), strSize(_strSize), codes(_codes) {}
     };
 
+    template <typename stringType, typename equalIntType>
     dataMTF GetDataMTF(const std::wstring& inputStr) const;
     std::string DecodeStringMTF(FILE* inputFile) const;
     std::wstring DecodeWstringMTF(FILE* inputFile) const;
@@ -125,15 +124,16 @@ int8_t FileCodec::Int16ToInt8(const int16_t& value) const {
 // ==================================================================================
 // Run-length encoding
 
-CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
+template <typename stringType, typename equalCharType>
+CodecRLE::dataRLE<stringType> CodecRLE::GetDataRLE(const stringType& inputStr) const
 {
-    std::queue<std::pair<int8_t, std::wstring>> encodedWstr;
+    std::queue<std::pair<int8_t, stringType>> encodedStr;
 
     int countIdent = 1; // current count of repeating identical characters
     int countUnique = 1; // current count of repeating unique characters
-    std::wstring uniqueSeq(1, inputStr[0]); // last sequence of unique characters
+    stringType uniqueSeq(1, inputStr[0]); // last sequence of unique characters
     bool flag = false; // show if previous character was part of sequence
-    wchar_t prev = inputStr[0]; // previous character
+    equalCharType prev = inputStr[0]; // previous character
 
     int8_t maxPossibleNumber = 127; // maximum possible value of int8_t
 
@@ -148,7 +148,7 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
                 --countUnique; // because "prev" was read as unique
 
                 countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-                encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
+                encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
 
                 countUnique = 1;
             }
@@ -157,7 +157,8 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
             else { ++countIdent; }
             
             countUnique = 0;
-            uniqueSeq = L"";
+            uniqueSeq.clear();
+            uniqueSeq.reserve(maxPossibleNumber);
         }
         else 
         {
@@ -165,11 +166,11 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
             if (countIdent > 1) {
                 if (countIdent >= maxPossibleNumber) {
                     for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                        encodedWstr.push(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
+                        encodedStr.push(std::make_pair(maxPossibleNumber, stringType(1, prev)));
                     }
                 }
                 if (countIdent % maxPossibleNumber != 0) {
-                    encodedWstr.push(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
+                    encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, stringType(1, prev)));
                 }
                 flag = true;
                 countIdent = 1;
@@ -194,10 +195,11 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
 
             // limit length of sequence
             if (countUnique == maxPossibleNumber) {
-                encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
+                encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
                 flag = true;
                 countUnique = 0;
-                uniqueSeq = L"";
+                uniqueSeq.clear();
+                uniqueSeq.reserve(maxPossibleNumber);
             }
         }
         prev = inputStr[i];
@@ -207,19 +209,19 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::wstring& inputStr) const
     if (countIdent > 1) {
         if (countIdent >= maxPossibleNumber) {
             for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                encodedWstr.push(std::make_pair(maxPossibleNumber, std::wstring(1, prev)));
+                encodedStr.push(std::make_pair(maxPossibleNumber, stringType(1, prev)));
             }
         }
         if (countIdent % maxPossibleNumber != 0) {
-            encodedWstr.push(std::make_pair(countIdent % maxPossibleNumber, std::wstring(1, prev)));
+            encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, stringType(1, prev)));
         }
     }
     if (countUnique > 0) { 
         countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
-        encodedWstr.push(std::make_pair(-countUnique, uniqueSeq));
+        encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
     }
 
-    return dataRLE(inputStr.size(), encodedWstr);
+    return dataRLE(inputStr.size(), encodedStr);
 }
 
 template <typename stringType>
@@ -273,25 +275,26 @@ stringType CodecRLE::DecodeRLE(FILE* inputFile) const
 void CodecRLE::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenWriteBinary(outputPath);
-    dataRLE encodingData = GetDataRLE(FileUtils::ReadWideContent(inputPath));
 
     if (FileUtils::ContainsWideChars(inputPath)) {
+        dataRLE encodingData = GetDataRLE<std::wstring, wchar_t>(FileUtils::ReadWideContent(inputPath));
         FileUtils::AppendCharBinary(outputFile, 'w');
         FileUtils::AppendInt64Binary(outputFile, encodingData.strSize);
-        while (!encodingData.encodedWstr.empty()) {
-            auto elem = encodingData.encodedWstr.front();
+        while (!encodingData.encodedStr.empty()) {
+            auto elem = encodingData.encodedStr.front();
             FileUtils::AppendInt8Binary(outputFile, elem.first);
             FileUtils::AppendWideStrBinary(outputFile, elem.second);
-            encodingData.encodedWstr.pop();
+            encodingData.encodedStr.pop();
         }
     } else {
+        dataRLE encodingData = GetDataRLE<std::string, char>(FileUtils::ReadContent(inputPath));
         FileUtils::AppendCharBinary(outputFile, 'c');
         FileUtils::AppendInt64Binary(outputFile, encodingData.strSize);
-        while (!encodingData.encodedWstr.empty()) {
-            auto elem = encodingData.encodedWstr.front();
+        while (!encodingData.encodedStr.empty()) {
+            auto elem = encodingData.encodedStr.front();
             FileUtils::AppendInt8Binary(outputFile, elem.first);
-            FileUtils::AppendStrBinary(outputFile, WstringToString(elem.second));
-            encodingData.encodedWstr.pop();
+            FileUtils::AppendStrBinary(outputFile, elem.second);
+            encodingData.encodedStr.pop();
         }
     }
     FileUtils::CloseFile(outputFile);
@@ -319,6 +322,42 @@ void CodecRLE::Decode(const char* inputPath, const char* outputPath) const
 // ==================================================================================
 // Move-to-front
 /* 
+template <typename stringType, typename equalIntType>
+CodecMTF::dataMTF CodecMTF::GetDataMTF(const std::wstring& inputStr) const
+{
+    std::wstring alphabet = Alphabet(inputStr);
+    size_t alphabetLength = alphabet.size();
+
+    if (alphabetLength <= 256) {
+        EncodeMTF8(alphabet, alphabetLength, str, file);
+    } else {
+        EncodeMTF16(alphabet, alphabetLength, str, file);
+    }
+
+    // write alphabet
+    for (size_t i = 0; i < alphabetLength; ++i) {
+        f.AppendWideCharBinary(alphabet[i]);
+    }
+
+    // write length of string
+    f.AppendUint64Binary(str.size());
+    // write move-to-front
+    for (size_t i = 0; i < str.size(); ++i) {
+        unsigned index = GetIndex(alphabet, alphabetLength, str[i]);
+        f.AppendUint8Binary(index);
+
+        // shift to the right
+        wchar_t temp = alphabet[0];
+        for (unsigned j = 1; j <= index; ++j) {
+            wchar_t temp2 = alphabet[j];
+            alphabet[j] = temp;
+            temp = temp2;
+        }
+        alphabet[0] = temp;
+    }
+
+}
+
 void CodecMTF::EncodeMTF(const std::wstring& str, const std::string& outputPath) const
 {
     auto EncodeMTF8 = [](wchar_t*& alphabet, size_t alphabetLength, const std::wstring& str, MyFile& f) {
@@ -455,7 +494,9 @@ void CodecMTF::Decode(const std::string& inputPath, const std::string& outputPat
     MyFile file(outputPath, "w");
     file.WriteWideContent(result);
 }
-
+ */
+/*
+// ==================================================================================
 // Burrows-Wheeler transform
 
 void CodecBWT::EncodeBWT(const std::wstring& str, const std::string& outputPath) const

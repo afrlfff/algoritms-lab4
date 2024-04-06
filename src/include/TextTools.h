@@ -11,7 +11,7 @@
 double TextEntropy(const std::wstring& str);
 
 // return ordered alphabet from the string
-wchar_t* Alphabet(const std::wstring& str);
+std::wstring Alphabet(const std::wstring& str);
 
 // return frequencies of the characters in order of the alphabet
 double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
@@ -61,19 +61,21 @@ double TextEntropy(const std::wstring& str) {
     return entropy;
 }
 
-wchar_t* Alphabet(const std::wstring& str)
+std::wstring Alphabet(const std::wstring& str)
 {
     const wchar_t* charStr = str.c_str();
     std::set<wchar_t> charsSet(charStr, charStr + wcslen(charStr));
 
-    wchar_t* alphabet = new wchar_t[charsSet.size() + 1];
+    std::wstring alphabet; 
+    alphabet.reserve(charsSet.size() + 1);
+
     int ind = 0;
     for (wchar_t c : charsSet) { 
         alphabet[ind++] = c;
     }
     alphabet[ind] = '\0'; // end of string
 
-    std::sort(alphabet, alphabet + ind);
+    std::sort(alphabet.begin(), alphabet.end());
 
     return alphabet;
 }
