@@ -33,16 +33,14 @@ int main()
 
     // TEST CODE
 
-    CodecRLE codec;
+    CodecMTF codec;
 
-    //EncodeAll(codec);
-    //DecodeAll(codec);
-    //MakeResultsFile();
+    EncodeAll(codec);
+    DecodeAll(codec);
+    MakeResultsFile();
 
     //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
     //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
-
-    //MakeResultsFile("RLE");
 
     return 0;
 }
