@@ -8,11 +8,10 @@
 #include <utility> // for std::pair
 
 // Calculate entropy of the string
-double TextEntropy(const std::wstring& str);
+double TextEntropy(const std::u32string& str);
 
 // return ordered alphabet from the string
-template <typename stringType, typename equalCharType>
-stringType Alphabet(const stringType& str);
+std::u32string Alphabet(const std::u32string& str);
 
 // return frequencies of the characters in order of the alphabet
 double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
@@ -43,13 +42,13 @@ double MeanRepeatingCharSeqLength(const std::wstring& str);
 
 // START IMPLEMENTATION
 
-double TextEntropy(const std::wstring& str) {
-    std::map<wchar_t, int> charCounts;
-    int countOfChars = 0;
-    wchar_t c;
+double TextEntropy(const std::u32string& str) {
+    std::map<char32_t, size_t> charCounts;
+    size_t countOfChars = 0;
+    char32_t c;
 
     // Calculate count of each character
-    for (const wchar_t& c : str) {
+    for (const char32_t& c : str) {
         countOfChars++;
         ++charCounts[c];
     }
@@ -64,15 +63,14 @@ double TextEntropy(const std::wstring& str) {
     return entropy;
 }
 
-template <typename stringType, typename equalCharType>
-stringType Alphabet(const stringType& str)
+std::u32string Alphabet(const std::u32string& str)
 {
-    const equalCharType* charStr = str.c_str();
-    std::set<equalCharType> charsSet(charStr, charStr + str.size());
+    const char32_t* charStr = str.c_str();
+    std::set<char32_t> charsSet(charStr, charStr + str.size());
 
-    stringType alphabet; alphabet.reserve(charsSet.size() + 1);
+    std::u32string alphabet; alphabet.reserve(charsSet.size() + 1);
 
-    for (equalCharType c : charsSet) { 
+    for (char32_t c : charsSet) { 
         alphabet.push_back(c);
     }
 

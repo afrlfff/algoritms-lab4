@@ -8,6 +8,8 @@
 #include <utility> // for std::pair
 
 #include "FileUtils.h"
+#include "CodecUTF8.h"
+
 #include "TextTools.h"
 #include "HuffmanTree.h"
 
@@ -32,17 +34,14 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    template <typename stringType>
     struct dataRLE {
         uint64_t strLength;
-        std::queue<std::pair<int8_t, stringType>> encodedStr;
-        dataRLE(size_t _strLength, std::queue<std::pair<int8_t, stringType>> _encodedStr) : strLength(_strLength), encodedStr(_encodedStr) {}
+        std::queue<std::pair<int8_t, std::u32string>> encodedStr;
+        dataRLE(size_t _strLength, std::queue<std::pair<int8_t, std::u32string>> _encodedStr) : strLength(_strLength), encodedStr(_encodedStr) {}
     };
 
-    template <typename stringType, typename equalCharType>
-    dataRLE<stringType> GetDataRLE(const stringType& inputStr) const;
-    template <typename stringType, typename equalCharType>
-    stringType DecodeRLE(FILE* inputFile) const;
+    dataRLE GetDataRLE(const std::u32string& inputStr) const;
+    std::string DecodeRLE(FILE* inputFile) const;
 };
 
 // Move-to-front
@@ -53,22 +52,18 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    template <typename stringType>
     struct dataMTF {
-        uint16_t alphabetLength;
-        stringType alphabet;
+        uint32_t alphabetLength;
+        std::u32string alphabet;
         uint64_t strLength;
-        std::vector<uint16_t> codes;
-        dataMTF(uint16_t _alphabetLength, stringType _alphabet, uint64_t _strLength, std::vector<uint16_t> _codes) : alphabetLength(_alphabetLength), alphabet(_alphabet), strLength(_strLength), codes(_codes) {}
+        std::vector<uint32_t> codes;
+        dataMTF(uint32_t _alphabetLength, std::u32string _alphabet, uint64_t _strLength, std::vector<uint32_t> _codes) : alphabetLength(_alphabetLength), alphabet(_alphabet), strLength(_strLength), codes(_codes) {}
     };
-    template <typename stringType, typename equalCharType>
-        const uint16_t GetIndex(stringType alphabet, uint16_t alphabetLength, equalCharType c) const;
 
-    template <typename stringType, typename equalCharType>
-        dataMTF<stringType> GetDataMTF(const stringType& inputStr) const;
-    template <typename stringType, typename equalCharType>
-        stringType DecodeMTF(FILE* inputFile) const;
-
+    void AlphabetShift(std::u32string& alphabet, const uint16_t& alphabetLength, const uint32_t& index) const;
+    const uint32_t GetIndex(const std::u32string& alphabet, const uint16_t alphabetLength, const char32_t c) const;
+    dataMTF GetDataMTF(const std::u32string& inputStr) const;
+    std::string DecodeMTF(FILE* inputFile) const;
 };
 
 /*
@@ -127,16 +122,15 @@ int8_t FileCodec::Int16ToInt8(const int16_t& value) const {
 // ==================================================================================
 // Run-length encoding
 
-template <typename stringType, typename equalCharType>
-CodecRLE::dataRLE<stringType> CodecRLE::GetDataRLE(const stringType& inputStr) const
+CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
 {
-    std::queue<std::pair<int8_t, stringType>> encodedStr;
+    std::queue<std::pair<int8_t, std::u32string>> encodedStr;
 
     int countIdent = 1; // current count of repeating identical characters
     int countUnique = 1; // current count of repeating unique characters
-    stringType uniqueSeq(1, inputStr[0]); // last sequence of unique characters
+    std::u32string uniqueSeq(1, inputStr[0]); // last sequence of unique characters
     bool flag = false; // show if previous character was part of sequence
-    equalCharType prev = inputStr[0]; // previous character
+    char32_t prev = inputStr[0]; // previous character
 
     int8_t maxPossibleNumber = 127; // maximum possible value of int8_t
 
@@ -169,11 +163,11 @@ CodecRLE::dataRLE<stringType> CodecRLE::GetDataRLE(const stringType& inputStr) c
             if (countIdent > 1) {
                 if (countIdent >= maxPossibleNumber) {
                     for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                        encodedStr.push(std::make_pair(maxPossibleNumber, stringType(1, prev)));
+                        encodedStr.push(std::make_pair(maxPossibleNumber, std::u32string(1, prev)));
                     }
                 }
                 if (countIdent % maxPossibleNumber != 0) {
-                    encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, stringType(1, prev)));
+                    encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, std::u32string(1, prev)));
                 }
                 flag = true;
                 countIdent = 1;
@@ -212,11 +206,11 @@ CodecRLE::dataRLE<stringType> CodecRLE::GetDataRLE(const stringType& inputStr) c
     if (countIdent > 1) {
         if (countIdent >= maxPossibleNumber) {
             for (int i = 0; i < (countIdent / maxPossibleNumber); ++i) {
-                encodedStr.push(std::make_pair(maxPossibleNumber, stringType(1, prev)));
+                encodedStr.push(std::make_pair(maxPossibleNumber, std::u32string(1, prev)));
             }
         }
         if (countIdent % maxPossibleNumber != 0) {
-            encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, stringType(1, prev)));
+            encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, std::u32string(1, prev)));
         }
     }
     if (countUnique > 0) { 
@@ -227,10 +221,9 @@ CodecRLE::dataRLE<stringType> CodecRLE::GetDataRLE(const stringType& inputStr) c
     return dataRLE(inputStr.size(), encodedStr);
 }
 
-template <typename stringType, typename equalCharType>
-stringType CodecRLE::DecodeRLE(FILE* inputFile) const
+std::string CodecRLE::DecodeRLE(FILE* inputFile) const
 {
-    stringType decodedStr;
+    std::string decodedStr;
 
     uint64_t strLength = FileUtils::ReadValueBinary<uint64_t>(inputFile);
     uint64_t counter = 0;
@@ -244,7 +237,8 @@ stringType CodecRLE::DecodeRLE(FILE* inputFile) const
         if (number < 0)
         {
             for (int8_t i = 0; i < (-number); ++i) {
-                decodedStr.push_back(FileUtils::ReadValueBinary<equalCharType>(inputFile));
+                //decodedStr.push_back(FileUtils::ReadValueBinary<char32_t>(inputFile));
+                decodedStr += CodecUTF8::DecodeChar32FromBinaryFileToString(inputFile);
                 ++counter;
             }
         }
@@ -252,9 +246,12 @@ stringType CodecRLE::DecodeRLE(FILE* inputFile) const
         // (sequence of identical symbols)
         else
         {
-            equalCharType c = FileUtils::ReadValueBinary<equalCharType>(inputFile);
+            //char32_t c = FileUtils::ReadValueBinary<char32_t>(inputFile);
+            std::string code = CodecUTF8::DecodeChar32FromBinaryFileToString(inputFile);
+
             for (int8_t i = 0; i < number; ++i) {
-                decodedStr.push_back(c);
+                //decodedStr.push_back(c);
+                decodedStr += code;
                 ++counter;
             }
         }
@@ -267,173 +264,133 @@ void CodecRLE::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    if (FileUtils::ContainsWideChars(inputPath)) {
-        dataRLE encodingData = GetDataRLE<std::wstring, wchar_t>(FileUtils::ReadWideContent(inputPath));
-        FileUtils::AppendValueBinary(outputFile, 'w');
-        FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
-        while (!encodingData.encodedStr.empty()) {
-            auto elem = encodingData.encodedStr.front();
-            FileUtils::AppendValueBinary(outputFile, elem.first);
-            FileUtils::AppendStrBinary(outputFile, elem.second);
-            encodingData.encodedStr.pop();
-        }
-    } else {
-        dataRLE encodingData = GetDataRLE<std::string, char>(FileUtils::ReadContent(inputPath));
-        FileUtils::AppendValueBinary(outputFile, 'c');
-        FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
-        while (!encodingData.encodedStr.empty()) {
-            auto elem = encodingData.encodedStr.front();
-            FileUtils::AppendValueBinary(outputFile, elem.first);
-            FileUtils::AppendStrBinary(outputFile, elem.second);
-            encodingData.encodedStr.pop();
-        }
+    dataRLE encodingData = GetDataRLE(FileUtils::ReadContentToU32String(inputPath));
+    FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
+    while (!encodingData.encodedStr.empty()) {
+        auto elem = encodingData.encodedStr.front();
+        FileUtils::AppendValueBinary(outputFile, elem.first);
+        //FileUtils::AppendStrBinary(outputFile, elem.second);
+        CodecUTF8::EncodeString32ToBinaryFile(outputFile, elem.second);
+        encodingData.encodedStr.pop();
     }
+
     FileUtils::CloseFile(outputFile);
 }
 
 void CodecRLE::Decode(const char* inputPath, const char* outputPath) const
 {
     FILE* inputFile = FileUtils::OpenFileBinaryRead(inputPath);
-    char flag = FileUtils::ReadValueBinary<char>(inputFile);
+    std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
 
-    if (flag == 'w') {
-        std::wofstream outputFile = FileUtils::OpenFile<std::wofstream>(outputPath);
-        std::wstring decodedStr = DecodeRLE<std::wstring, wchar_t>(inputFile);
-        FileUtils::AppendWideStr(outputFile, decodedStr);
-        FileUtils::CloseFile(outputFile);
-    } else { // flag == 'c'
-        std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
-        std::string decodedStr = DecodeRLE<std::string, char>(inputFile);
-        FileUtils::AppendStr(outputFile, decodedStr);
-        FileUtils::CloseFile(outputFile);
-    }
+    std::string decodedStr = DecodeRLE(inputFile);
+    FileUtils::AppendStr(outputFile, decodedStr);
+    
+    FileUtils::CloseFile(outputFile);
     FileUtils::CloseFile(inputFile);
 }
 
 // ==================================================================================
 // Move-to-front
 
-template <typename stringType, typename equalCharType>
-const uint16_t CodecMTF::GetIndex(stringType alphabet, uint16_t alphabetLength, equalCharType c) const
+void CodecMTF::AlphabetShift(std::u32string& alphabet, const uint16_t& alphabetLength, const uint32_t& index) const
+{
+    char32_t temp = alphabet[0], temp2;
+    for (uint32_t j = 1; j <= index; ++j) {
+        temp2 = alphabet[j];
+        alphabet[j] = temp;
+        temp = temp2;
+    }
+    alphabet[0] = temp;
+}
+
+const uint32_t CodecMTF::GetIndex(const std::u32string& alphabet, const uint16_t alphabetLength, const char32_t c) const
 {
     for (uint16_t i = 0; i < alphabetLength; ++i) {
         if (alphabet[i] == c) {
             return i;
         }
     }
-
-    return 0; // assuming that this will never happen
+    return 0; // assume that this will never happen
 }
 
-template <typename stringType, typename equalCharType>
-CodecMTF::dataMTF<stringType> CodecMTF::GetDataMTF(const stringType& inputStr) const
+CodecMTF::dataMTF CodecMTF::GetDataMTF(const std::u32string& inputStr) const
 {
-    stringType alphabet = Alphabet<stringType, equalCharType>(inputStr);
-    uint16_t alphabetLength = alphabet.size();
+    std::u32string alphabet = Alphabet(inputStr);
+    uint32_t alphabetLength = alphabet.size();
     uint64_t strLength = inputStr.size();
 
-    std::vector<uint16_t> codes; codes.reserve(strLength);
+    std::vector<uint32_t> codes; codes.reserve(strLength);
     // move-to-front
     for (uint64_t i = 0; i < strLength; ++i) {
-        uint16_t index = GetIndex<stringType, equalCharType>(alphabet, alphabetLength, inputStr[i]);
+        uint32_t index = GetIndex(alphabet, alphabetLength, inputStr[i]);
         codes.push_back(index);
 
-        // shift to the right
-        equalCharType temp = alphabet[0];
-        for (uint16_t j = 1; j <= index; ++j) {
-            equalCharType temp2 = alphabet[j];
-            alphabet[j] = temp;
-            temp = temp2;
-        }
-        alphabet[0] = temp;
+        AlphabetShift(alphabet, alphabetLength, index);
     }
 
     std::sort(alphabet.begin(), alphabet.end());
-
     return dataMTF(alphabetLength, alphabet, strLength, codes);
 }
 
-template <typename stringType, typename equalCharType>
-stringType CodecMTF::DecodeMTF(FILE* inputFile) const
+std::string CodecMTF::DecodeMTF(FILE* inputFile) const
 {
     // read meta data
-    uint16_t alphabetLength = FileUtils::ReadValueBinary<uint16_t>(inputFile);
-    stringType alphabet = FileUtils::ReadStrBinary<stringType, equalCharType>(inputFile, alphabetLength);
+    uint32_t alphabetLength = FileUtils::ReadValueBinary<uint32_t>(inputFile);
+    //std::u32string alphabet = FileUtils::ReadStrBinary<stringType, equalCharType>(inputFile, alphabetLength);
+    std::u32string alphabet = CodecUTF8::DecodeString32FromBinaryFile(inputFile, alphabetLength);
     uint64_t strLength = FileUtils::ReadValueBinary<uint64_t>(inputFile);
 
     // decode
-    stringType decodedStr; decodedStr.reserve(strLength);
+    std::u32string decodedStr; decodedStr.reserve(strLength);
     uint16_t index;
-    equalCharType temp, temp2;
+    char32_t temp, temp2;
 
     if (alphabetLength <= 256) {
         for (uint64_t i = 0; i < strLength; ++i) {
             index = FileUtils::ReadValueBinary<uint8_t>(inputFile);
             decodedStr.push_back(alphabet[index]);
 
-            // shift to the right
-            temp = alphabet[0];
-            for (uint16_t j = 1; j <= index; ++j) {
-                temp2 = alphabet[j];
-                alphabet[j] = temp;
-                temp = temp2;
-            }
-            alphabet[0] = temp;
+            AlphabetShift(alphabet, alphabetLength, index);
         }
-    } else {
+    } else if (alphabetLength <= 65536) {
         for (uint64_t i = 0; i < strLength; ++i) {
             index = FileUtils::ReadValueBinary<uint16_t>(inputFile);
             decodedStr.push_back(alphabet[index]);
 
-            // shift to the right
-            temp = alphabet[0];
-            for (uint16_t j = 1; j <= index; ++j) {
-                temp2 = alphabet[j];
-                alphabet[j] = temp;
-                temp = temp2;
-            }
-            alphabet[0] = temp;
+            AlphabetShift(alphabet, alphabetLength, index);
+        }
+    } else {
+        for (uint64_t i = 0; i < strLength; ++i) {
+            index = FileUtils::ReadValueBinary<uint32_t>(inputFile);
+            decodedStr.push_back(alphabet[index]);
+
+            AlphabetShift(alphabet, alphabetLength, index);
         }
     }
 
-    return decodedStr;
+    return CodecUTF8::EncodeString32ToString(decodedStr);
 }
 
 void CodecMTF::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    if (FileUtils::ContainsWideChars(inputPath)) {
-        dataMTF encodingData = GetDataMTF<std::wstring, wchar_t>(FileUtils::ReadWideContent(inputPath));
-        FileUtils::AppendValueBinary(outputFile, 'w');
-        FileUtils::AppendValueBinary(outputFile, encodingData.alphabetLength);
-        FileUtils::AppendStrBinary(outputFile, encodingData.alphabet);
-        FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
+    dataMTF encodingData = GetDataMTF(FileUtils::ReadContentToU32String(inputPath));
+    FileUtils::AppendValueBinary(outputFile, encodingData.alphabetLength);
+    CodecUTF8::EncodeString32ToBinaryFile(outputFile, encodingData.alphabet);
+    FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
 
-        if (encodingData.alphabetLength <= 256) {
-            for (uint64_t i = 0; i < encodingData.strLength; ++i) {
-                FileUtils::AppendValueBinary(outputFile, (uint8_t)(encodingData.codes[i]));
-            }
-        } else {
-            for (uint64_t i = 0; i < encodingData.strLength; ++i) {
-                FileUtils::AppendValueBinary(outputFile, encodingData.codes[i]);
-            }
+    if (encodingData.alphabetLength <= 256) {
+        for (uint64_t i = 0; i < encodingData.strLength; ++i) {
+            FileUtils::AppendValueBinary(outputFile, static_cast<uint8_t>(encodingData.codes[i]));
+        }
+    } else if (encodingData.alphabetLength <= 65536) {
+        for (uint64_t i = 0; i < encodingData.strLength; ++i) {
+            FileUtils::AppendValueBinary(outputFile, static_cast<uint16_t>(encodingData.codes[i]));
         }
     } else {
-        dataMTF encodingData = GetDataMTF<std::string, char>(FileUtils::ReadContent(inputPath));
-        FileUtils::AppendValueBinary(outputFile, 'c');
-        FileUtils::AppendValueBinary(outputFile, encodingData.alphabetLength);
-        FileUtils::AppendStrBinary(outputFile, encodingData.alphabet);
-        FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
-        
-        if (encodingData.alphabetLength <= 256) {
-            for (uint64_t i = 0; i < encodingData.strLength; ++i) {
-                FileUtils::AppendValueBinary(outputFile, (uint8_t)(encodingData.codes[i]));
-            }
-        } else {
-            for (uint64_t i = 0; i < encodingData.strLength; ++i) {
-                FileUtils::AppendValueBinary(outputFile, encodingData.codes[i]);
-            }
+        for (uint64_t i = 0; i < encodingData.strLength; ++i) {
+            FileUtils::AppendValueBinary(outputFile, static_cast<uint32_t>(encodingData.codes[i]));
         }
     }
     FileUtils::CloseFile(outputFile);
@@ -442,19 +399,12 @@ void CodecMTF::Encode(const char* inputPath, const char* outputPath) const
 void CodecMTF::Decode(const char* inputPath, const char* outputPath) const
 {
     FILE* inputFile = FileUtils::OpenFileBinaryRead(inputPath);
-    char flag = FileUtils::ReadValueBinary<char>(inputFile);
+    std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
 
-    if (flag == 'w') {
-        std::wofstream outputFile = FileUtils::OpenFile<std::wofstream>(outputPath);
-        std::wstring decodedStr = DecodeMTF<std::wstring, wchar_t>(inputFile);
-        FileUtils::AppendWideStr(outputFile, decodedStr);
-        FileUtils::CloseFile(outputFile);
-    } else { // flag == 'c'
-        std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
-        std::string decodedStr = DecodeMTF<std::string, char>(inputFile);
-        FileUtils::AppendStr(outputFile, decodedStr);
-        FileUtils::CloseFile(outputFile);
-    }
+    std::string decodedStr = DecodeMTF(inputFile);
+    FileUtils::AppendStr(outputFile, decodedStr);
+
+    FileUtils::CloseFile(outputFile);
     FileUtils::CloseFile(inputFile);
 }
 

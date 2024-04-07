@@ -22,17 +22,16 @@ public:
     static void CloseFile(fileType& file);
     static void CloseFile(FILE* file);
 
-    static bool ContainsWideChars(const char* filepath);
+    //static bool ContainsWideChars(const char* filepath);
 
     // non-binary files functions
-    static const std::string ReadContent(const char* filepath);
-    static const std::wstring ReadWideContent(const char* filepath);
+    static const std::string ReadContentToString(const char* filepath);
+    static const std::u32string ReadContentToU32String(const char* filepath);
+    //static const std::wstring ReadWideContent(const char* filepath);
     static void WriteContent(const char* filepath, const std::string& content);
-    static void WriteWideContent(const char* filepath, const std::wstring& content);
-    static void AppendChar(std::ofstream& file, const char c);
-    static void AppendWideChar(std::wofstream& file, const wchar_t c);
+    //static void WriteWideContent(const char* filepath, const std::wstring& content);
     static void AppendStr(std::ofstream& file, const std::string& str);
-    static void AppendWideStr(std::wofstream& file, const std::wstring& str);
+    //static void AppendWideStr(std::wofstream& file, const std::wstring& str);
 
     // binary files functions
     template <typename valueType>
@@ -97,7 +96,7 @@ void FileUtils::CloseFile(FILE* file)
 
 // ==========================================================================================================
 
-// checks if file contains wide characters
+/* // checks if file contains wide characters
 bool FileUtils::ContainsWideChars(const char* filePath)
 {
     std::wifstream file = OpenFile<std::wifstream>(filePath);
@@ -112,10 +111,10 @@ bool FileUtils::ContainsWideChars(const char* filePath)
     file.close();
     return false;
 }
-
+ */
 // ==========================================================================================
 
-// read all wide characters from file to std::wstring
+/* // read all wide characters from file to std::wstring
 const std::wstring FileUtils::ReadWideContent(const char* filepath)
 {
     std::wifstream file = OpenFile<std::wifstream>(filepath);
@@ -127,14 +126,28 @@ const std::wstring FileUtils::ReadWideContent(const char* filepath)
 
     return wss.str();
 }
-
+ */
 // read all characters from file to std::string
-const std::string FileUtils::ReadContent(const char* filepath)
+const std::string FileUtils::ReadContentToString(const char* filepath)
 {
     std::ifstream file = OpenFile<std::ifstream>(filepath);
     std::string result = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
+    FileUtils::CloseFile(file);
     return result;
+}
+
+const std::u32string FileUtils::ReadContentToU32String(const char* filepath)
+{
+    std::ifstream file = FileUtils::OpenFile<std::ifstream>(filepath);
+    
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+
+    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+    std::u32string content = converter.from_bytes(buffer.str());
+    FileUtils::CloseFile(file);
+
+    return content;
 }
 
 // write std::string to file
@@ -146,7 +159,7 @@ void FileUtils::WriteContent(const char* filepath, const std::string& content)
 }
 
 // write std::wstring to file
-
+/* 
 void FileUtils::WriteWideContent(const char* filepath, const std::wstring& content)
 {
     std::wofstream file = OpenFile<std::wofstream>(filepath);
@@ -154,7 +167,7 @@ void FileUtils::WriteWideContent(const char* filepath, const std::wstring& conte
     file << content;
     file.close();
 }
-
+ */
 
 // ==========================================================================================================
 
@@ -164,13 +177,13 @@ void FileUtils::AppendStr(std::ofstream& file, const std::string& str)
     file << str;
 }
 
-// append std::wstring to opened file
+/* // append std::wstring to opened file
 void FileUtils::AppendWideStr(std::wofstream& file, const std::wstring& str)
 {
     file.imbue(std::locale(std::locale(), new std::codecvt_utf8<wchar_t>));
     file << str;
 }
-
+ */
 // ==========================================================================================================
 
 template <typename valueType>
