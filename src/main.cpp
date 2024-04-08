@@ -33,14 +33,14 @@ int main()
 
     // TEST CODE
 
-    CodecMTF codec;
+    CodecAC codec;
 
-    //EncodeAll(codec);
-    //DecodeAll(codec);
-    //MakeResultsFile();
+    EncodeAll(codec);
+    DecodeAll(codec);
+    MakeResultsFile();
 
-    codec.Encode("..\\input\\txt\\enwik7.txt", "..\\output\\encoded\\enwik7_encoded.bin");
-    codec.Decode("..\\output\\encoded\\enwik7_encoded.bin", "..\\output\\decoded\\enwik7_decoded.txt");
+    //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
+    //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     return 0;
 }

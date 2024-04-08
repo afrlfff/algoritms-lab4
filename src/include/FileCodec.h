@@ -66,7 +66,33 @@ protected:
     std::string DecodeMTF(FILE* inputFile) const;
 };
 
+// Ariphmetical encoding
+class CodecAC : public FileCodec
+{
+public:
+    CodecAC() = default;
+    void Encode(const char* inputPath, const char* outputPath) const override;
+    void Decode(const char* inputPath, const char* outputPath) const override;
+protected:
+    struct dataAC_local {
+        uint8_t alphabetLength;
+        std::u32string alphabet;
+        std::vector<uint8_t> frequencies;
+        uint64_t resultValue;
+        dataAC_local(uint8_t _alphabetLength, std::u32string _alphabet, std::vector<uint8_t> _frequencies, uint64_t _resultValue) : alphabetLength(_alphabetLength), alphabet(_alphabet), frequencies(_frequencies), resultValue(_resultValue) {}
+    };
+    struct dataAC {
+        uint64_t strLength;
+        std::queue<dataAC_local> queueLocalData;
+        dataAC(const uint64_t& _strLength, const std::queue<dataAC_local>& _queueLocalData) : strLength(_strLength), queueLocalData(_queueLocalData) {}
+    };
+
+    dataAC_local GetDataAC_local(const std::u32string& inputStr) const;
+    dataAC GetDataAC(const std::u32string& inputStr) const;
+    std::string DecodeAC(FILE* inputFile) const;
+};
 /*
+
 // Burrows-Wheeler transform
 class CodecBWT : public FileCodec
 {
@@ -77,15 +103,6 @@ public:
     void Decode(const std::string& inputPath, const std::string& outputPath) const override;
 };
 
-// Ariphmetical encoding
-class CodecAFM : public FileCodec
-{
-    void EncodeAFM(const std::wstring& str, const std::string& outputPath) const;
-    std::wstring DecodeAFM(const std::string& inputPath) const;
-public:
-    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
-    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
-};
 
 // Huffman encoding
 class CodecHUF : public FileCodec
@@ -408,6 +425,236 @@ void CodecMTF::Decode(const char* inputPath, const char* outputPath) const
     FileUtils::CloseFile(inputFile);
 }
 
+// =================================================================================================
+// Ariphmetical encoding
+
+CodecAC::dataAC_local CodecAC::GetDataAC_local(const std::u32string& inputStr) const
+{
+    // initialize sorted alphabet and sorted frequencies
+    std::u32string alphabet = Alphabet(inputStr);
+    uint8_t alphabetLength = alphabet.size();
+    std::map<char32_t, double> charFrequenciesMap = CharFrequenciesMap(alphabet, alphabetLength, inputStr);
+    // convert map to vector
+    std::vector<std::pair<char32_t, double>> charFrequenciesVector(charFrequenciesMap.begin(), charFrequenciesMap.end());
+    // sort vector by frequencies
+    std::sort(charFrequenciesVector.begin(), charFrequenciesVector.end(), [](const auto& a, const auto& b) {
+        return a.second < b.second;
+    });
+
+    // leave in frequencies only 2 digits after the decimal point
+    // for correct work of algorithm
+    for (auto& elem : charFrequenciesVector) {
+        elem.second = static_cast<uint8_t>((elem.second * 100)) / 100.0;
+    }
+
+    // inicialize segments
+    //// (array of bounds from 0 to 1)
+    std::vector<double> segments; segments.reserve(alphabetLength + 1);
+    segments.push_back(0.0);
+    for (uint8_t i = 1; i < alphabetLength; ++i) {
+        segments.push_back(charFrequenciesVector[i - 1].second + segments[i - 1]);
+    }
+    segments.push_back(1.0);
+
+    // encode (get final left and right bounds)
+    double leftBound = 0, rightBound = 1, distance;
+    uint8_t index;
+    for (char32_t c : inputStr) {
+        for (index = 0; index < alphabetLength; ++index) {
+            if (charFrequenciesVector[index].first == c) {
+                break;
+            }
+        }
+
+        distance = rightBound - leftBound;
+        rightBound = leftBound + segments[index + 1] * distance;
+        leftBound = leftBound + segments[index] * distance;
+    }
+
+    double resultValueDouble = rightBound / 2 + leftBound / 2;
+    // leave only significant fractional part of a number
+    uint64_t resultValue = static_cast<uint64_t>(resultValueDouble * 10000000000000000000.0);
+
+    // make alphabet
+    std::u32string alphabetLocal;
+    for (uint8_t i = 0; i < alphabetLength; ++i) {
+        alphabetLocal.push_back(charFrequenciesVector[i].first);
+    }
+
+    // make frequencies vector
+    std::vector<uint8_t> frequencies;
+    for (uint8_t i = 0; i < alphabetLength; ++i) {
+        // leave only significant fractional part of a number
+        frequencies.push_back(static_cast<uint8_t>(charFrequenciesVector[i].second * 100));
+    }
+
+    return dataAC_local(alphabetLength, alphabetLocal, frequencies, resultValue);
+}
+
+CodecAC::dataAC CodecAC::GetDataAC(const std::u32string& inputStr) const
+{
+    // maximum number of character in the string to make encoding 
+    const uint8_t numChars = 13;
+    std::queue<dataAC_local> queueLocalData; 
+
+    uint64_t strLength = inputStr.size();
+    // number of sequences to encode
+    uint64_t numberOfFullSequences = (strLength % numChars == 0) ? (strLength / numChars) : (strLength / numChars);
+
+    // encode every <numChars> characters
+    uint64_t CountOfSeq = 0;
+    while (CountOfSeq < numberOfFullSequences) {
+        queueLocalData.push(GetDataAC_local(inputStr.substr(CountOfSeq * numChars, numChars)));
+        ++CountOfSeq;
+    }
+    // handle the rest of the string
+    if (strLength % numChars != 0) {
+        queueLocalData.push(GetDataAC_local(inputStr.substr(numberOfFullSequences * numChars, strLength % numChars)));
+    }
+
+    return dataAC(strLength, queueLocalData);
+}
+
+std::string CodecAC::DecodeAC(FILE* inputFile) const
+{
+    uint64_t strLength = FileUtils::ReadValueBinary<uint64_t>(inputFile);
+    // maximum number of character in the string to make encoding 
+    const uint8_t numChars = 13;
+    // number of sequences to encode
+    uint64_t numberOfFullSequences = (strLength % numChars == 0) ? (strLength / numChars) : (strLength / numChars);
+
+    // counter of decoded sequences
+    uint64_t CountOfSeq = 0;
+    std::string result;
+
+    uint8_t alphabetLength;
+    std::u32string alphabet;
+    std::u32string result_local; result_local.reserve(numChars);
+    double resultValue;
+    while (CountOfSeq < numberOfFullSequences) {
+        // read values
+        alphabetLength = FileUtils::ReadValueBinary<uint8_t>(inputFile);
+        alphabet = CodecUTF8::DecodeString32FromBinaryFile(inputFile, alphabetLength);
+        std::vector<double> frequencies; frequencies.reserve(alphabetLength);
+        for (uint8_t i = 0; i < alphabetLength; ++i) {
+            frequencies.push_back(FileUtils::ReadValueBinary<uint8_t>(inputFile) / 100.0);
+        }
+
+        resultValue = FileUtils::ReadValueBinary<uint64_t>(inputFile) / 10000000000000000000.0;
+
+        // decoding
+        // inicialize segments
+        std::vector<double> segments; segments.reserve(alphabetLength + 1);
+        segments.push_back(0.0);
+        for (uint32_t i = 1; i < alphabetLength; ++i) {
+            segments.push_back(frequencies[i - 1] + segments[i - 1]);
+        }
+        segments.push_back(1.0);
+
+        // decode
+        double leftBound = 0, rightBound = 1, distance;
+        int index;
+        for (uint8_t i = 0; i < numChars; ++i) {
+            // find index of segment contains resultValue
+            for (uint8_t j = 0; j < alphabetLength; ++j) {
+                if (resultValue >= (leftBound + segments[j] * (rightBound - leftBound)) && 
+                    resultValue < (leftBound + segments[j + 1] * (rightBound - leftBound))) {
+                    index = j;
+                    break;
+                }
+            }
+            result_local.push_back(alphabet[index]);
+
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        result += CodecUTF8::EncodeString32ToString(result_local);
+        result_local.clear();
+        ++CountOfSeq;
+    }
+    // handle the rest
+    // (same code but with different count of iterations in while loop)
+    if (strLength % numChars != 0) {
+        // read values
+        alphabetLength = FileUtils::ReadValueBinary<uint8_t>(inputFile);
+        alphabet = CodecUTF8::DecodeString32FromBinaryFile(inputFile, alphabetLength);
+        std::vector<double> frequencies; frequencies.reserve(alphabetLength);
+        for (uint8_t i = 0; i < alphabetLength; ++i) {
+            frequencies.push_back(FileUtils::ReadValueBinary<uint8_t>(inputFile) / 100.0);
+        }
+        resultValue = FileUtils::ReadValueBinary<uint64_t>(inputFile) / 10000000000000000000.0;
+
+        // decoding
+        // inicialize segments
+        std::vector<double> segments; segments.reserve(alphabetLength + 1);
+        segments.push_back(0);
+        for (uint32_t i = 1; i < alphabetLength; ++i) {
+            segments.push_back(frequencies[i - 1] + segments[i - 1]);
+        }
+        segments.push_back(1);
+
+        // decode
+        double leftBound = 0, rightBound = 1, distance;
+        int index;
+        for (uint8_t i = 0; i < strLength % numChars; ++i) {
+            // find index of segment contains resultValue
+            for (uint8_t j = 0; j < alphabetLength; ++j) {
+                if (resultValue >= (leftBound + segments[j] * (rightBound - leftBound)) && 
+                    resultValue < (leftBound + segments[j + 1] * (rightBound - leftBound))) {
+                    index = j;
+                    break;
+                }
+            }
+            result_local.push_back(alphabet[index]);
+
+            distance = rightBound - leftBound;
+            rightBound = leftBound + segments[index + 1] * distance;
+            leftBound = leftBound + segments[index] * distance;
+        }
+
+        result += CodecUTF8::EncodeString32ToString(result_local);
+        ++CountOfSeq;
+    }
+
+    return result;
+}
+
+void CodecAC::Encode(const char* inputPath, const char* outputPath) const
+{
+    FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
+
+    dataAC encodingData = GetDataAC(FileUtils::ReadContentToU32String(inputPath));
+    FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
+
+    while (!encodingData.queueLocalData.empty()) {
+        auto elem = encodingData.queueLocalData.front();
+
+        FileUtils::AppendValueBinary(outputFile, elem.alphabetLength);
+        CodecUTF8::EncodeString32ToBinaryFile(outputFile, elem.alphabet);
+        for (uint8_t i = 0; i < elem.alphabetLength; ++i) {
+            FileUtils::AppendValueBinary(outputFile, elem.frequencies[i]);
+        }
+        FileUtils::AppendValueBinary(outputFile, elem.resultValue);
+
+        encodingData.queueLocalData.pop();
+    }
+    FileUtils::CloseFile(outputFile);
+}
+
+void CodecAC::Decode(const char* inputPath, const char* outputPath) const
+{
+    FILE* inputFile = FileUtils::OpenFileBinaryRead(inputPath);
+    std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
+
+    std::string decodedStr = DecodeAC(inputFile);
+    FileUtils::AppendStr(outputFile, decodedStr);
+
+    FileUtils::CloseFile(outputFile);
+    FileUtils::CloseFile(inputFile);
+}
+
 /*
 // ==================================================================================
 // Burrows-Wheeler transform
@@ -492,173 +739,6 @@ void CodecBWT::Decode(const std::string& inputPath, const std::string& outputPat
     file.WriteWideContent(result);
 }
 
-// Ariphmetical encoding
-
-void CodecAFM::EncodeAFM(const std::wstring& str, const std::string& outputPath) const
-{
-    auto encode = [](const std::wstring& str, MyFile& file) {
-        // initialize sorted alphabet and sorted frequencies
-        wchar_t* alphabet = Alphabet(str);
-        int8_t size = wcslen(alphabet);
-        std::pair<wchar_t, double>* charFrequencies = CharFrequencyPairs(alphabet, size, str);
-        std::sort(charFrequencies, charFrequencies + size);
-
-        // leave in frequencies only 2 characters after the decimal point
-        // (for correct decoding)
-        for (int8_t i = 0; i < size; ++i) {
-            charFrequencies[i].second = ((int8_t)(charFrequencies[i].second * 100)) / 100.0;
-        }
-
-        // inicialize segments
-        //// (array of bounds points from 0 to 1)
-        double* segments = new double[size + 1]{ 0 };
-        for (int i = 1; i < size; ++i) {
-            segments[i] = charFrequencies[i - 1].second + segments[i - 1];
-        }
-        segments[size] = 1;
-
-        // encode (get final left and right bounds)
-        double leftBound = 0, rightBound = 1, distance;
-        for (wchar_t c : str) {
-            int8_t index = GetIndexInSorted(charFrequencies, size, c);
-            distance = rightBound - leftBound;
-            rightBound = leftBound + segments[index + 1] * distance;
-            leftBound = leftBound + segments[index] * distance;
-        }
-
-        // write size of alphabet
-        file.AppendInt8Binary(size);
-
-        // write alphabet
-        for (int8_t i = 0; i < size; ++i) {
-            file.AppendWideCharBinary(charFrequencies[i].first);
-        }
-
-        // write frequencies
-        for (int8_t i = 0; i < size; ++i){
-            file.AppendInt8Binary((int8_t)((charFrequencies[i].second) * 100));
-        }
-
-        double resultValue = (rightBound + leftBound) / 2;
-        // leave only 9 digits after the decimal point
-        //// cause int32_t value can store any number with 9 digits 
-        file.AppendInt32Binary((int32_t)(resultValue * 1000000000));
-
-        delete[] alphabet; delete[] charFrequencies; delete[] segments;
-    };
-
-    MyFile file(outputPath, "w");
-    int64_t size = str.size();
-
-    // write count of sequences
-    int64_t countOfSequences = (size % 9 == 0) ? (size / 9) : (size / 9 + 1);
-    file.AppendInt64Binary(countOfSequences);
-
-    // encode every 9 chars
-    int64_t i = 0;
-    while (i + 9 <= size) {
-        encode(str.substr(i, 9), file);
-        i += 9;
-    }
-    // handle the rest of the string
-    if (i != size) {
-        encode(str.substr(i, size - i), file);
-        file.AppendInt8Binary(size - i); // fix last count of characters
-                                         //(cause it can be lower than 9)
-    } else {
-        file.AppendInt8Binary(9); // fix last count of characters
-    }
-}
-
-std::wstring CodecAFM::DecodeAFM(const std::string& inputPath) const
-{
-    auto decode = [](const wchar_t alhpabet[10], int8_t alphabetSize, const double frequencies[9], double resultValue, int8_t countOfIterations) {
-        // inicialize segments
-        //// (array of bound points from 0 to 1)
-        double* segments = new double[alphabetSize + 1]{ 0 };
-        for (int8_t i = 1; i < alphabetSize; ++i) {
-            segments[i] = frequencies[i - 1] + segments[i - 1];
-        }
-        segments[alphabetSize] = 1;
-
-        // decode
-        std::wstring result;
-        double leftBound = 0, rightBound = 1, distance;
-        int index;
-        for (int8_t i = 0; i < countOfIterations; ++i) {
-            // find index of segment contains resultValue
-            for (int8_t j = 0; j < alphabetSize; ++j) {
-                if (resultValue >= (leftBound + segments[j] * (rightBound - leftBound)) && 
-                    resultValue < (leftBound + segments[j + 1] * (rightBound - leftBound))) {
-                    index = j;
-                    break;
-                }
-            }
-            result.push_back(alhpabet[index]);
-
-            distance = rightBound - leftBound;
-            rightBound = leftBound + segments[index + 1] * distance;
-            leftBound = leftBound + segments[index] * distance;
-        }
-
-        delete[] segments;
-        return result;
-    };
-
-    std::wstring result = L""; 
-    MyFile file(inputPath, "r");
-
-    // get count of sequences
-    int64_t countOfSequences = file.ReadInt64Binary();
-
-    // get sequences and merge results
-    int8_t alphabetSize;
-    wchar_t alhpabet[9 + 1]; // can't contain more than 9 characters
-    double frequencies[9]; // can't contain more than 9 characters
-    double resultValue;
-    int8_t lastCount = 9;
-    for (int64_t i = 0; i < countOfSequences; ++i) {
-        // read size of alphabet
-        alphabetSize = file.ReadInt8Binary();
-
-        // read alhpabet
-        for (int8_t j = 0; j < alphabetSize; ++j) {
-            alhpabet[j] = file.ReadWideCharBinary();
-        }
-        alhpabet[alphabetSize] = L'\0';
-
-        // read frequencies
-        for (int8_t j = 0; j < alphabetSize; ++j) {
-            frequencies[j] = file.ReadInt8Binary() / 100.0;
-        }
-
-        // read result value
-        resultValue = file.ReadInt32Binary() / 1000000000.0;
-
-        // read last count if it exists
-        if (i == countOfSequences - 1) { // if last iteration
-            lastCount = file.ReadInt8Binary();
-        }
-
-        result += decode(alhpabet, alphabetSize, frequencies, resultValue, lastCount);
-    }
-
-    return result;
-}
-
-void CodecAFM::Encode(const std::string& inputPath, const std::string& outputPath) const
-{
-    MyFile file(inputPath, "r");
-    std::wstring inputStr = file.ReadWideContent();
-    EncodeAFM(inputStr, outputPath);
-}
-
-void CodecAFM::Decode(const std::string& inputPath, const std::string& outputPath) const
-{
-    std::wstring result = DecodeAFM(inputPath);
-    MyFile file(outputPath, "w");
-    file.WriteWideContent(result);
-}
 
 // Huffman encoding
 

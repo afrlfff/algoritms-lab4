@@ -17,7 +17,7 @@ std::u32string Alphabet(const std::u32string& str);
 double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& str);
 
 // return frequencies of the characters in order of the alphabet
-std::pair<wchar_t, double>* CharFrequencyPairs(wchar_t* alphabet, const size_t size, const std::wstring& str);
+std::map<char32_t, double> CharFrequenciesMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str);
 
 // return index of the character in the alphabet
 template <typename stringType, typename equalCharType>
@@ -96,22 +96,19 @@ double* Frequencies(wchar_t* alphabet, const size_t size, const std::wstring& st
     return frequencies;
 }
 
-std::pair<wchar_t, double>* CharFrequencyPairs(wchar_t* alphabet, const size_t size, const std::wstring& str)
+std::map<char32_t, double> CharFrequenciesMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str)
 {
-    std::pair<wchar_t, double>* frequencies = new std::pair<wchar_t, double>[size];
-    for (int i = 0; i < size; i++) {
-        frequencies[i] = std::make_pair(alphabet[i], 0);
-    }
+    std::map<char32_t, double> charFrequencies;
 
     size_t countAll = 0;
-    for (wchar_t c : str) {
-        ++frequencies[GetIndex(alphabet, size, c)].second;
+    for (char32_t c : str) {
+        ++charFrequencies[c];
         ++countAll;
-    } for (int i = 0; i < size; i++) {
-        frequencies[i].second /= countAll;
+    } for (size_t i = 0; i < size; i++) {
+        charFrequencies[alphabet[i]] /= static_cast<double>(countAll);
     }
 
-    return frequencies;
+    return charFrequencies;
 }
 
 template <typename stringType, typename equalCharType>
