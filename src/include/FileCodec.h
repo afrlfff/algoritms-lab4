@@ -149,7 +149,8 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
     bool flag = false; // show if previous character was part of sequence
     char32_t prev = inputStr[0]; // previous character
 
-    int8_t maxPossibleNumber = 127; // maximum possible value of int8_t
+    int maxPossibleNumber = 127; // maximum possible value of int8_t
+    uniqueSeq.reserve(maxPossibleNumber); // optimization
 
     // start RLE
     for (size_t i = 1; i < inputStr.size(); ++i)
@@ -161,7 +162,6 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
                 uniqueSeq.pop_back(); // because "prev" was read as unique
                 --countUnique; // because "prev" was read as unique
 
-                countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
                 encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
 
                 countUnique = 1;
@@ -172,7 +172,6 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
             
             countUnique = 0;
             uniqueSeq.clear();
-            uniqueSeq.reserve(maxPossibleNumber);
         }
         else 
         {
@@ -194,15 +193,17 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
 
             if (flag) {
                 countUnique = 1;
-                uniqueSeq = inputStr[i];
+                uniqueSeq.clear();
+                uniqueSeq.push_back(inputStr[i]);
                 flag = false;
             } else {
                 if (countUnique == 0) {
                     countUnique = 1;
-                    uniqueSeq = prev;
+                    uniqueSeq.clear();
+                    uniqueSeq.push_back(prev);
                 }
 
-                countUnique++;
+                ++countUnique;
                 uniqueSeq.push_back(inputStr[i]);
             }
             countIdent = 1;
@@ -213,7 +214,6 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
                 flag = true;
                 countUnique = 0;
                 uniqueSeq.clear();
-                uniqueSeq.reserve(maxPossibleNumber);
             }
         }
         prev = inputStr[i];
@@ -230,8 +230,7 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
             encodedStr.push(std::make_pair(countIdent % maxPossibleNumber, std::u32string(1, prev)));
         }
     }
-    if (countUnique > 0) { 
-        countUnique = (countUnique == 1) ? -1 : countUnique; // to avoid -1
+    if (countUnique > 0) {
         encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
     }
 
