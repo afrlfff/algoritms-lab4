@@ -11,7 +11,7 @@
 #include "include/EncodingDecodingRatios.h"
 
 // temporary
-#include "include/FileCodecTxtOnly.h"
+#include "include/EncodeToString.h"
 
 namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
@@ -33,11 +33,16 @@ int main()
 
     // TEST CODE
 
-    CodecAC codec;
+    CodecRLE codec;
 
-    EncodeAll(codec);
-    DecodeAll(codec);
-    MakeResultsFile();
+    //EncodeAll(codec);
+    //DecodeAll(codec);
+    //MakeResultsFile();
+
+
+    std::string text = "a aslkdjsajd laskjd laksjd sd kljlbcde";
+    std::string encodedText = EncodeHA_toString(text);
+    std::cout << encodedText << std::endl;
 
     //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
     //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");

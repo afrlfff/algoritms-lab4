@@ -21,9 +21,6 @@ public:
     virtual void Decode(const char* inputPath, const char* outputPath) const = 0;
 protected:
     FileCodec() = default;
-    char WideCharToChar(const wchar_t& wc) const;
-    std::string WstringToString(const std::wstring& wstr) const;
-    int8_t Int16ToInt8(const int16_t& value) const;
 };
 
 // Run-length encoding
@@ -116,25 +113,6 @@ public:
  */
 
 // START IMPLEMENTATION
-
-// ==================================================================================
-// File Codec
-
-char FileCodec::WideCharToChar(const wchar_t& wc) const {
-    return (char)(wc);
-};
-
-std::string FileCodec::WstringToString(const std::wstring& wstr) const {
-    std::string newStr;
-    for (size_t i = 0; i < wstr.size(); ++i) {
-        newStr.push_back(WideCharToChar(wstr[i]));
-    }
-    return newStr;
-};
-
-int8_t FileCodec::Int16ToInt8(const int16_t& value) const {
-    return (int8_t)(value);
-}
 
 // ==================================================================================
 // Run-length encoding
