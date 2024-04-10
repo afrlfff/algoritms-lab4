@@ -144,10 +144,10 @@ std::map<char, std::string> GetHuffmanCodes(HuffmanTreeTest& tree, const int& al
     // special case
     if (alphabetSize == 1) {
         huffmanCodes[tree.root->chars[0]] = "0";
-        return huffmanCodes;
+    } else {
+        tree.fillHuffmanCodes(tree.root, "", huffmanCodes);
     }
-
-    tree.fillHuffmanCodes(tree.root, "", huffmanCodes);
+    
     return huffmanCodes;
 }
 
