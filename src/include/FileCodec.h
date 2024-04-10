@@ -88,29 +88,34 @@ protected:
     dataAC GetDataAC(const std::u32string& inputStr) const;
     std::string DecodeAC(FILE* inputFile) const;
 };
-/*
 
-// Burrows-Wheeler transform
-class CodecBWT : public FileCodec
+// Huffman algorithm encoding
+class CodecHA : public FileCodec
 {
-    void EncodeBWT(const std::wstring& str, const std::string& outputPath) const;
-    std::wstring DecodeBWT(const std::string& inputPath) const;
 public:
-    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
-    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
+    CodecHA() = default;
+    void Encode(const char* inputPath, const char* outputPath) const override;
+    void Decode(const char* inputPath, const char* outputPath) const override;
+protected:
+    struct dataHA_local {
+        uint16_t alphabetLength;
+        std::u32string alphabet;
+        std::map<char32_t, std::string> huffmanCodesMap;
+        std::string encodedStr;
+        dataHA_local(const uint16_t& _alphabetLength, const std::u32string& _alphabet, const std::map<char32_t, std::string>& _huffmanCodesMap, const std::string& _encodedStr) : alphabetLength(_alphabetLength), alphabet(_alphabet), huffmanCodesMap(_huffmanCodesMap), encodedStr(_encodedStr) {}
+    };
+    struct dataHA {
+        std::queue<dataHA_local> queueLocalData;
+        dataHA(const std::queue<dataHA_local>& _queueLocalData) : queueLocalData(_queueLocalData) {}
+    };
+
+    uint8_t GetNumberFromBinaryString(const std::string& binaryString) const;
+    std::string GetBinaryStringFromNumber(const uint8_t& number, const uint8_t& codeLength) const;
+
+    dataHA GetDataHA(const std::u32string& inputStr) const;
+    std::u32string DecodeHA(FILE* inputFile) const;
 };
 
-
-// Huffman encoding
-class CodecHUF : public FileCodec
-{
-    void EncodeHUF(const std::wstring& str, const std::string& outputPath) const;
-    std::wstring DecodeHUF(const std::string& inputPath) const;
-public:
-    void Encode(const std::string& inputPath, const std::string& outputPath) const override;
-    void Decode(const std::string& inputPath, const std::string& outputPath) const override;
-};
- */
 
 // START IMPLEMENTATION
 
@@ -309,7 +314,7 @@ const uint32_t CodecMTF::GetIndex(const std::u32string& alphabet, const uint16_t
 
 CodecMTF::dataMTF CodecMTF::GetDataMTF(const std::u32string& inputStr) const
 {
-    std::u32string alphabet = Alphabet(inputStr);
+    std::u32string alphabet = GetAlphabet(inputStr);
     uint32_t alphabetLength = alphabet.size();
     uint64_t strLength = inputStr.size();
 
@@ -408,9 +413,9 @@ void CodecMTF::Decode(const char* inputPath, const char* outputPath) const
 CodecAC::dataAC_local CodecAC::GetDataAC_local(const std::u32string& inputStr) const
 {
     // initialize sorted alphabet and sorted frequencies
-    std::u32string alphabet = Alphabet(inputStr);
+    std::u32string alphabet = GetAlphabet(inputStr);
     uint8_t alphabetLength = alphabet.size();
-    std::map<char32_t, double> charFrequenciesMap = CharFrequenciesMap(alphabet, alphabetLength, inputStr);
+    std::map<char32_t, double> charFrequenciesMap = GetCharFrequenciesMap(alphabet, alphabetLength, inputStr);
     // convert map to vector
     std::vector<std::pair<char32_t, double>> charFrequenciesVector(charFrequenciesMap.begin(), charFrequenciesMap.end());
     // sort vector by frequencies
@@ -631,6 +636,213 @@ void CodecAC::Decode(const char* inputPath, const char* outputPath) const
     FileUtils::CloseFile(outputFile);
     FileUtils::CloseFile(inputFile);
 }
+
+// ==================================================================================
+// Huffman algorithm
+
+uint8_t CodecHA::GetNumberFromBinaryString(const std::string& binaryString) const
+{
+    uint8_t result = 0;
+    for (size_t i = 0; i < binaryString.size(); ++i) {
+        if (binaryString[i] == '1') {
+            result |= (1 << (binaryString.length() - i - 1));
+        }
+    }
+    return result;
+}
+
+std::string CodecHA::GetBinaryStringFromNumber(const uint8_t& number, const uint8_t& codeLength) const
+{
+    std::string result(codeLength, '0');
+    for (uint8_t i = 0; i < codeLength; ++i) {
+        if (number & (1 << (codeLength - i - 1))) {
+            result[i] = '1';
+        }
+    }
+    return result;
+} 
+
+CodecHA::dataHA CodecHA::GetDataHA(const std::u32string& inputStr) const
+{
+    std::queue<dataHA_local> queueLocalData;
+
+    const size_t strLengthToStart = 50;
+    const size_t strLengthToAppend = 10;
+    const size_t maxHuffmanCodeLength = 8;
+    uint8_t maxHuffmanCodeLengthCounter;
+    size_t stringPointer = 0;
+    std::u32string localString;
+
+    std::set<char32_t> alphabetSet;
+    std::map<char32_t, size_t> charCountsMap;
+    std::vector<std::pair<char32_t, double>> charFrequenciesVector;
+
+    uint32_t temp;
+
+    // get all the dataHA_local
+    while (stringPointer != inputStr.size()) {
+        // inicialization
+        localString = inputStr.substr(stringPointer, strLengthToStart);
+        alphabetSet = GetAlphabetSet(localString);
+        charCountsMap = GetCharCountsMap(std::u32string(alphabetSet.begin(), alphabetSet.end()), alphabetSet.size(), localString);
+        charFrequenciesVector = std::vector<std::pair<char32_t, double>>(charCountsMap.begin(), charCountsMap.end());
+        for (size_t i = 0; i < charFrequenciesVector.size(); ++i) {
+            charFrequenciesVector[i].second = static_cast<double>(charFrequenciesVector[i].second) / charCountsMap[charFrequenciesVector[i].first];
+        }
+
+        maxHuffmanCodeLengthCounter = 0;
+        while (true) {
+            // get maxHuffmanCodeLengthCounter
+            HuffmanTree tree = BuildHuffmanTree(charFrequenciesVector, alphabetSet.size());
+            maxHuffmanCodeLengthCounter = tree.GetHeight();
+            if (maxHuffmanCodeLengthCounter > maxHuffmanCodeLength) {
+                break;
+            }
+
+            // modify the data
+            // expand localString
+            localString += inputStr.substr(localString.size(), strLengthToAppend);
+            // expand alphabetSet and charCountsMap
+            temp = alphabetSet.size();
+            for (size_t i = localString.size() - strLengthToAppend; i < localString.size(); ++i) {
+                alphabetSet.insert(localString[i]);
+
+                // if inderted character is new 
+                if (alphabetSet.size() > temp) {
+                    ++charCountsMap[localString[i]];
+                    ++temp;
+                }
+            }
+            // get charFrequenciesVector
+            charFrequenciesVector = std::vector<std::pair<char32_t, double>>(charCountsMap.begin(), charCountsMap.end());
+            for (size_t i = 0; i < charFrequenciesVector.size(); ++i) {
+                charFrequenciesVector[i].second = static_cast<double>(charFrequenciesVector[i].second) / charCountsMap[charFrequenciesVector[i].first];
+            }
+            // sort vector by frequencies
+            std::sort(charFrequenciesVector.begin(), charFrequenciesVector.end(), [](const auto& a, const auto& b) {
+                return a.second < b.second;
+            });
+        }
+        
+        HuffmanTree tree = BuildHuffmanTree(charFrequenciesVector, alphabetSet.size());
+        std::map<char32_t, std::string> huffmanCodesMap = GetHuffmanCodes(tree, alphabetSet.size());
+        std::string encodedStr;
+        for (size_t i = 0; i < inputStr.size(); ++i) {
+            encodedStr += huffmanCodesMap[inputStr[i]];
+        }
+        queueLocalData.push(dataHA_local(alphabetSet.size(), std::u32string(alphabetSet.begin(), alphabetSet.end()), huffmanCodesMap, encodedStr));
+        
+        // move stringPointer
+        stringPointer += localString.size();
+    }
+    
+    return dataHA(queueLocalData);
+}
+
+std::u32string CodecHA::DecodeHA(FILE* inputFile) const
+{
+    uint64_t countOfLocalData = FileUtils::ReadValueBinary<uint64_t>(inputFile);
+    std::u32string decodedStr;
+
+    for (uint64_t i = 0; i < countOfLocalData; ++i) {
+        uint32_t alphabetLength = FileUtils::ReadValueBinary<uint32_t>(inputFile);
+        std::u32string alphabet = CodecUTF8::DecodeString32FromBinaryFile(inputFile, alphabetLength);
+
+        uint16_t lengthsOfCodesSize = FileUtils::ReadValueBinary<uint16_t>(inputFile);
+        std::string lengthsOfCodes = FileUtils::ReadSequenceOfDigitsBinary(inputFile, lengthsOfCodesSize);
+
+        std::map<std::string, char32_t> inverseHuffmanCodesMap;
+        for (uint32_t j = 0; j < alphabetLength; ++j) {
+            inverseHuffmanCodesMap[GetBinaryStringFromNumber(FileUtils::ReadValueBinary<uint8_t>(inputFile), lengthsOfCodes[j])] = alphabet[i];
+        }
+
+        uint64_t encodedStrLength = FileUtils::ReadValueBinary<uint64_t>(inputFile);
+        std::string encodedStr; encodedStr.reserve(encodedStrLength);
+        for (uint64_t j = 0; j < encodedStrLength - encodedStrLength % 8; j += 8) {
+            encodedStr += GetBinaryStringFromNumber(FileUtils::ReadValueBinary<uint8_t>(inputFile), 8);
+        }
+        if (encodedStrLength % 8 != 0) {
+            encodedStr += GetBinaryStringFromNumber(FileUtils::ReadValueBinary<uint8_t>(inputFile), encodedStrLength % 8);
+        }
+
+        std::u32string decodedStrLocal;
+        std::string currentCode; currentCode.reserve(8);
+        for (size_t j = 0; j < encodedStr.size(); ++j) {
+            currentCode.push_back(encodedStr[j]);
+            if (inverseHuffmanCodesMap.find(currentCode) != inverseHuffmanCodesMap.end()) {
+                decodedStrLocal.push_back(inverseHuffmanCodesMap[currentCode]);
+                currentCode.clear();
+            }
+        }
+
+        decodedStr += decodedStrLocal;
+    }
+
+    return decodedStr;
+}
+
+void CodecHA::Encode(const char* inputPath, const char* outputPath) const
+{
+    FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
+
+    dataHA encodingData = GetDataHA(FileUtils::ReadContentToU32String(inputPath));
+    
+    FileUtils::AppendValueBinary(outputFile, static_cast<uint64_t>(encodingData.queueLocalData.size()));
+    while (!encodingData.queueLocalData.empty()) {
+        dataHA_local dataLocal = encodingData.queueLocalData.front();
+
+        FileUtils::AppendValueBinary(outputFile, dataLocal.alphabetLength);
+        CodecUTF8::EncodeString32ToBinaryFile(outputFile, dataLocal.alphabet);
+
+        std::map<char32_t, std::string> huffmanCodesMap = dataLocal.huffmanCodesMap;
+        // write lengths of huffman codes effectively
+        std::string lengthsOfCodes;
+        for (size_t i = 0; i < dataLocal.alphabetLength; ++i) {
+            //FileUtils::AppendValueBinary(outputFile, static_cast<uint8_t>(huffmanCodesMap[dataLocal.alphabet[i]].size()));
+            lengthsOfCodes.push_back(huffmanCodesMap[dataLocal.alphabet[i]].size() + '0');
+        }
+        FileUtils::AppendValueBinary(outputFile, static_cast<uint16_t>(lengthsOfCodes.size()));
+        FileUtils::AppendSequenceOfDigitsBinary(outputFile, lengthsOfCodes);
+        // write huffman codes as a single string
+        std::string allHuffmanCodes;
+        for (size_t i = 0; i < dataLocal.alphabetLength; ++i) {
+            allHuffmanCodes += huffmanCodesMap[dataLocal.alphabet[i]];
+        }
+        for (size_t i = 0; i < allHuffmanCodes.size() - allHuffmanCodes.size() % 8; i += 8) {
+            FileUtils::AppendValueBinary(outputFile, GetNumberFromBinaryString(allHuffmanCodes.substr(i, 8)));
+        }
+        if (allHuffmanCodes.size() % 8 != 0) {
+            FileUtils::AppendValueBinary(outputFile, static_cast<uint8_t>(GetNumberFromBinaryString(allHuffmanCodes.substr(allHuffmanCodes.size() - allHuffmanCodes.size() % 8))));
+        }
+        
+        std::string encodedStr = dataLocal.encodedStr;
+        FileUtils::AppendValueBinary(outputFile, static_cast<uint64_t>(encodedStr.size()));
+        for (size_t i = 0; i < encodedStr.size() - encodedStr.size() % 8; i += 8) {
+            FileUtils::AppendValueBinary(outputFile, GetNumberFromBinaryString(encodedStr.substr(i, 8)));
+        }
+        if (encodedStr.size() % 8 != 0) {
+            FileUtils::AppendValueBinary(outputFile, static_cast<uint8_t>(GetNumberFromBinaryString(encodedStr.substr(encodedStr.size() - encodedStr.size() % 8))));
+        }
+
+        encodingData.queueLocalData.pop();
+    }
+
+    FileUtils::CloseFile(outputFile);
+}
+
+void CodecHA::Decode(const char* inputPath, const char* outputPath) const
+{
+    FILE* inputFile = FileUtils::OpenFileBinaryRead(inputPath);
+    std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
+
+    std::string decodedStr = CodecUTF8::EncodeString32ToString(DecodeHA(inputFile));
+    FileUtils::AppendStr(outputFile, decodedStr);
+
+    FileUtils::CloseFile(outputFile);
+    FileUtils::CloseFile(inputFile);
+}
+
+// ==================================================================================
 
 /*
 // ==================================================================================
