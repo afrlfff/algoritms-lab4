@@ -11,9 +11,11 @@ double GetTextEntropy(const std::u32string& str);
 
 // return ordered alphabet from the string
 std::u32string GetAlphabet(const std::u32string& str);
+std::set<char32_t> GetAlphabetSet(const std::u32string& str);
 
 // return map of characters and their frequencies
 std::map<char32_t, double> GetCharFrequenciesMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str);
+std::map<char32_t, size_t> GetCharCountsMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str);
 
 // ratio of sequences of repeating characters within the string
 double GetRepeatingCharSeqRatio(const std::u32string& str);
@@ -60,6 +62,14 @@ std::u32string GetAlphabet(const std::u32string& str)
     return alphabet;
 }
 
+std::set<char32_t> GetAlphabetSet(const std::u32string& str)
+{
+    const char32_t* charStr = str.c_str();
+    std::set<char32_t> alphabet(charStr, charStr + str.size());
+
+    return alphabet;
+}
+
 std::map<char32_t, double> GetCharFrequenciesMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str)
 {
     std::map<char32_t, double> charFrequencies;
@@ -73,6 +83,19 @@ std::map<char32_t, double> GetCharFrequenciesMap(const std::u32string& alphabet,
     }
 
     return charFrequencies;
+}
+
+std::map<char32_t, size_t> GetCharCountsMap(const std::u32string& alphabet, const size_t& size, const std::u32string& str)
+{
+    std::map<char32_t, size_t> charCounts;
+
+    size_t countAll = 0;
+    for (char32_t c : str) {
+        ++charCounts[c];
+        ++countAll;
+    }
+
+    return charCounts;
 }
 
 double GetRepeatingCharSeqRatio(const std::u32string& str){

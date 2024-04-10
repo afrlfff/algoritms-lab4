@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <sstream>
 #include <cstdint>
 // for correct wide character reading
@@ -22,26 +23,23 @@ public:
     static void CloseFile(fileType& file);
     static void CloseFile(FILE* file);
 
-    //static bool ContainsWideChars(const char* filepath);
-
     // non-binary files functions
     static const std::string ReadContentToString(const char* filepath);
     static const std::u32string ReadContentToU32String(const char* filepath);
-    //static const std::wstring ReadWideContent(const char* filepath);
     static void WriteContent(const char* filepath, const std::string& content);
-    //static void WriteWideContent(const char* filepath, const std::wstring& content);
     static void AppendStr(std::ofstream& file, const std::string& str);
-    //static void AppendWideStr(std::wofstream& file, const std::wstring& str);
 
     // binary files functions
     template <typename valueType>
     static const valueType ReadValueBinary(FILE* file);
     template <typename valueType>
     static void AppendValueBinary(FILE* file, const valueType number);
-    template <typename stringType, typename equalCharType>
-    static const stringType ReadStrBinary(FILE* file, const size_t& size);
-    template <typename stringType>
-    static void AppendStrBinary(FILE* file, const stringType& str);
+    static const std::string ReadStrBinary(FILE* file, const size_t& size);
+    static void AppendStrBinary(FILE* file, const std::string& str);
+
+    // complex functions
+    static void AppendSequenceOfDigitsBinary(FILE* file, const std::string& str);
+    static std::string ReadSequenceOfDigitsBinary(FILE* file, const size_t& size);
 };
 
 // START IMPLEMENTATION
@@ -96,37 +94,6 @@ void FileUtils::CloseFile(FILE* file)
 
 // ==========================================================================================================
 
-/* // checks if file contains wide characters
-bool FileUtils::ContainsWideChars(const char* filePath)
-{
-    std::wifstream file = OpenFile<std::wifstream>(filePath);
-
-    std::wstring content = ReadWideContent(filePath);
-    for (size_t i = 0; i < content.size(); ++i) {
-        if (content[i] >= 256) {
-            return true;
-        }
-    }
-
-    file.close();
-    return false;
-}
- */
-// ==========================================================================================
-
-/* // read all wide characters from file to std::wstring
-const std::wstring FileUtils::ReadWideContent(const char* filepath)
-{
-    std::wifstream file = OpenFile<std::wifstream>(filepath);
-
-    file.imbue(std::locale(std::locale(), new std::codecvt_utf8<wchar_t>));
-    std::wstringstream wss;
-    wss << file.rdbuf();
-    file.close();
-
-    return wss.str();
-}
- */
 // read all characters from file to std::string
 const std::string FileUtils::ReadContentToString(const char* filepath)
 {
@@ -158,17 +125,6 @@ void FileUtils::WriteContent(const char* filepath, const std::string& content)
     file.close();
 }
 
-// write std::wstring to file
-/* 
-void FileUtils::WriteWideContent(const char* filepath, const std::wstring& content)
-{
-    std::wofstream file = OpenFile<std::wofstream>(filepath);
-    file.imbue(std::locale(std::locale(), new std::codecvt_utf8<wchar_t>));
-    file << content;
-    file.close();
-}
- */
-
 // ==========================================================================================================
 
 // append std::string to opened file
@@ -177,13 +133,6 @@ void FileUtils::AppendStr(std::ofstream& file, const std::string& str)
     file << str;
 }
 
-/* // append std::wstring to opened file
-void FileUtils::AppendWideStr(std::wofstream& file, const std::wstring& str)
-{
-    file.imbue(std::locale(std::locale(), new std::codecvt_utf8<wchar_t>));
-    file << str;
-}
- */
 // ==========================================================================================================
 
 template <typename valueType>
@@ -202,24 +151,116 @@ void FileUtils::AppendValueBinary(FILE* file, const valueType value)
 
 // ==========================================================================================================
 
-template <typename stringType, typename equalCharType>
-const stringType FileUtils::ReadStrBinary(FILE* file, const size_t& size)
+const std::string FileUtils::ReadStrBinary(FILE* file, const size_t& size)
 {
-    stringType str; str.reserve(size + 1);
+    std::string str; str.reserve(size);
     for (size_t i = 0; i < size; ++i) {
-        str[i] = ReadValueBinary<equalCharType>(file);
+        str.push_back(ReadValueBinary<char>(file));
     }
-    str[size] = '\0';
 
     return str;
 }
 
-template <typename stringType>
-void FileUtils::AppendStrBinary(FILE* file, const stringType& str)
+void FileUtils::AppendStrBinary(FILE* file, const std::string& str)
 {
     for (size_t i = 0; i < str.size(); ++i) {
         AppendValueBinary(file, str[i]);
     }
+}
+
+// ==========================================================================================================
+
+void FileUtils::AppendSequenceOfDigitsBinary(FILE* file, const std::string& str)
+{
+    size_t stringPointer = 0;
+
+    uint64_t ui64; // can store 19 digits
+    uint32_t ui32; // can store 9 digits
+    uint16_t ui16; // can store 4 digits
+    uint8_t ui8; // can store 2 digits
+    int8_t i8; // it will store 1 digit
+
+    while (stringPointer < str.size()) {
+        if ((str.size() - stringPointer) >= 19) {
+            ui64 = 0;
+            for (int i = 18; i >= 0; --i) {
+                ui64 += static_cast<uint64_t>(std::pow(10, i)) * (str[stringPointer++] - '0');
+            }
+            AppendValueBinary(file, ui64);
+        } else if ((str.size() - stringPointer) >= 9) {
+            ui32 = 0;
+            for (int i = 8; i >= 0; --i) {
+                ui32 += std::pow(10, i) * (str[stringPointer++] - '0');
+            }
+            AppendValueBinary(file, ui32);
+        } else if ((str.size() - stringPointer) >= 4) {
+            ui16 = 0;
+            for (int i = 3; i >= 0; --i) {
+                ui16 += std::pow(10, i) * (str[stringPointer++] - '0');
+            }
+            AppendValueBinary(file, ui16);
+        } else if ((str.size() - stringPointer) >= 2) {
+            ui8 = 0;
+            ui8 += 10 * (str[stringPointer++] - '0');
+            ui8 += 1 * (str[stringPointer++] - '0');
+            AppendValueBinary(file, ui8);
+        } else {
+            i8 = -1 * (str[stringPointer++] - '0');
+            AppendValueBinary(file, i8);
+        }
+    }
+}
+
+std::string FileUtils::ReadSequenceOfDigitsBinary(FILE* file, const size_t& size)
+{
+    std::string str; str.reserve(size);
+    
+    size_t counter = size;
+
+    uint64_t ui64; // can store 19 digits
+    uint32_t ui32; // can store 9 digits
+    uint16_t ui16; // can store 4 digits
+    uint8_t ui8; // can store 2 digits
+    int8_t i8; // it will store 1 digit
+
+    while (counter > 0) {
+        if (counter >= 19) {
+            ui64 = ReadValueBinary<uint64_t>(file);
+            for (int i = 18; i >= 0; --i) {
+                int k = ui64 / static_cast<uint64_t>(std::pow(10, i));
+                str.push_back('0' + k);
+                ui64 -= k * static_cast<uint64_t>(std::pow(10, i));
+            }
+            counter -= 19;
+        } else if (counter >= 9) {
+            ui32 = ReadValueBinary<uint32_t>(file);
+            for (int i = 8; i >= 0; --i) {
+                int k = static_cast<int>(ui32 / std::pow(10, i));
+                str.push_back('0' + k);
+                ui32 -= k * std::pow(10, i);
+            }
+            counter -= 9;
+        } else if (counter >= 4) {
+            ui16 = ReadValueBinary<uint16_t>(file);
+            for (int i = 3; i >= 0; --i) {
+                int k = static_cast<int>(ui16 / std::pow(10, i));
+                str.push_back('0' + k);
+                ui16 -= k * std::pow(10, i);
+            }
+            counter -= 4;
+        } else if (counter >= 2) {
+            ui8 = ReadValueBinary<uint8_t>(file);
+            str.push_back('0' + ui8 / 10);
+            str.push_back('0' + ui8 % 10);
+            counter -= 2;
+        } else {
+            i8 = ReadValueBinary<int8_t>(file);
+            str.push_back('0' + (-1 * i8));
+            counter -= 1;
+        }
+    }
+
+    return str;
 }
 
 // ==========================================================================================================
