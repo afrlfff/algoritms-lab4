@@ -28,24 +28,24 @@ void MakeGraphics(const std::string& codecName);
 
 int main()
 {
-    ClearOutputDirectory();
+    //ClearOutputDirectory();
     std::cout << "Start" << std::endl;
 
     // TEST CODE
 
-    CodecRLE codec;
+    CodecHA codec;
 
     //EncodeAll(codec);
     //DecodeAll(codec);
     //MakeResultsFile();
 
+    //std::string text = "abcd";
+    //std::string encodedText = EncodeHA_toString(text);
+    //std::cout << encodedText << std::endl;
 
-    std::string text = "a aslkdjsajd laskjd laksjd sd kljlbcde";
-    std::string encodedText = EncodeHA_toString(text);
-    std::cout << encodedText << std::endl;
 
-    //codec.Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
-    //codec.Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
+    codec.Encode("..\\input\\txt\\enwik7.txt", "..\\output\\encoded\\enwik7_encoded.bin");
+    codec.Decode("..\\output\\encoded\\enwik7_encoded.bin", "..\\output\\decoded\\enwik7_decoded.txt");
 
     return 0;
 }
@@ -143,7 +143,7 @@ void MakeResultsFile()
 
         file << '\n';
         file << fileName + ' ' + 
-                std::to_string(TextEntropy(textOriginal)) + ' ' + 
+                std::to_string(GetTextEntropy(textOriginal)) + ' ' + 
                 std::to_string(fs::file_size(pathToOriginal) / 1024.0) + ' ' + 
                 std::to_string(fs::file_size(pathToEncoded) / 1024.0) + ' ' + 
                 std::to_string(EncodingRatio(pathToOriginal, pathToEncoded)) + ' ' + 

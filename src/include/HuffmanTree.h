@@ -50,20 +50,22 @@ public:
     ~HuffmanTree() { clearNode(root); }
 };
 
-HuffmanTree BuildHuffmanTree(std::vector<std::pair<char32_t, double>> charFrequencies, const size_t& alphabetSize) {
+HuffmanTree BuildHuffmanTree(std::vector<std::pair<char32_t, double>> sortedCharFrequencies, const size_t& alphabetSize) {
     std::vector<HuffmanNode*> freeNodesVector;
     freeNodesVector.reserve(alphabetSize * 2); // use size*2 as a maximum possible number of nodes
 
     // fill freeNodesVector
     for (uint32_t i = 0; i < alphabetSize; ++i) {
-        freeNodesVector.push_back(new HuffmanNode(charFrequencies[i].first, charFrequencies[i].second, nullptr, nullptr, 0));
+        freeNodesVector.push_back(new HuffmanNode(sortedCharFrequencies[i].first, sortedCharFrequencies[i].second, nullptr, nullptr, 1));
     }
 
     HuffmanNode *left, *right, *parent;
     
     // special case
     if (alphabetSize == 1) {
-        parent = new HuffmanNode(charFrequencies[0].first, 1.0, nullptr, nullptr, 1);
+        parent = new HuffmanNode(sortedCharFrequencies[0].first, 1.0, nullptr, nullptr, 1);
+    } else if (alphabetSize == 0) {
+        parent = new HuffmanNode(' ', 0.0, nullptr, nullptr, 0);
     }
     // build Huffman tree
     while(freeNodesVector.size() > 1) {
