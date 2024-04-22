@@ -1,5 +1,9 @@
-#pragma once
+// !!!!!!!!!!!!
+// File just for testing compression algorithms
+// not for using in a program
+// !!!!!!!!!!!!
 
+#pragma once
 #include <string>
 #include <vector>
 #include <map>
@@ -285,252 +289,96 @@ std::string EncodeHA_toString(const std::string& inputStr)
     return encodedStr;
 }
 
-/* 
-std::wstring CodecMTFTxtOnly::DecodeMTF(const std::wstring& str) const
+std::string EncodeBWT_toString(const std::string& inputStr)
 {
-    wchar_t c;
-    size_t i = 0;
-    int alphabetLength;
-    wchar_t* alphabet;
-
-    // read alphabet length
-    wchar_t buffer[10];
-    while (str[i] != L'\n') {
-        buffer[i++] = str[i];
+    std::vector<std::string> permutations; permutations.reserve(inputStr.size());
+    for (size_t i = 0; i < inputStr.size(); ++i) {
+        permutations.push_back(inputStr.substr(i) + inputStr.substr(0, i));
     }
-    alphabetLength = std::stoi(buffer);
+    std::sort(permutations.begin(), permutations.end());
 
-    // read alphabet
-    ++i;
-    alphabet = new wchar_t[alphabetLength + 1];
-    for (size_t j = 0; j < alphabetLength; ++j) {
-        alphabet[j] = str[i++];
+    std::string encodedStr; encodedStr.reserve(inputStr.size());
+    for (size_t i = 0; i < inputStr.size(); ++i) {
+        encodedStr.push_back(permutations[i][inputStr.size() - 1]);
     }
-    alphabet[alphabetLength] = L'\0';
-
-    // decode
-    ++i;
-    std::wstring decodedStr = L"";
-    while (i < str.size()) {
-        std::wstring numberStr = L"";
-        while (str[i] != L' ') {
-            numberStr.push_back(str[i++]);
-        }
-        size_t index = std::stoi(numberStr);
-        decodedStr.push_back(alphabet[index]);
-
-        // shift right
-        wchar_t temp = alphabet[0];
-        for (size_t j = 1; j <= index; ++j) {
-            wchar_t temp2 = alphabet[j];
-            alphabet[j] = temp;
-            temp = temp2;
-        }
-        alphabet[0] = temp;
-
-        ++i;
-    }
-
-    delete[] alphabet;
-    return decodedStr;
-}
-
-// Burrows-Wheeler transform
-
-std::wstring CodecBWTTxtOnly::EncodeBWT(const std::wstring& str) const
-{
-    size_t index = -1, permutationsLength = 0;
-
-    // get index and length of permutations
-    for (size_t i = 0; i < str.size(); ++i) {
-        if (index != -1) ++permutationsLength;
-        if (str[i] == L'\n') {
-            index  = std::stoi(str.substr(0, i));
-        }
-    }
-
-    // get permutations
-    std::wstring sortedLetters = str.substr(str.size() - permutationsLength, permutationsLength);
-    std::wstring* permutations = new std::wstring[permutationsLength];
-    for (size_t i = 0; i < permutationsLength; ++i) {
-        // add new column
-        for (size_t j = 0; j < permutationsLength; ++j) {
-            permutations[j].insert(0, 1, sortedLetters[j]);
-        }
-
-        // sort permutations
-        std::stable_sort(permutations, permutations + permutationsLength);
-    }
-
-    // get count of the same letters before the letter[index]
-    size_t count = 0;
-    for (size_t i = 0; i < index; i++) {
-        if (sortedLetters[i] == sortedLetters[index]) count++;
-    }
-
-    return permutations[index];
-}
-
-std::wstring CodecBWTTxtOnly::DecodeBWT(const std::wstring& str) const
-{
-    size_t index = -1, permutationsLength = 0;
-
-    // get index and length of permutations
-    for (size_t i = 0; i < str.size(); ++i) {
-        if (index != -1) ++permutationsLength;
-        if (str[i] == L'\n') {
-            index  = std::stoi(str.substr(0, i));
-        }
-    }
-
-    // get permutations
-    std::wstring sortedLetters = str.substr(str.size() - permutationsLength, permutationsLength);
-    std::wstring* permutations = new std::wstring[permutationsLength];
-    for (size_t i = 0; i < permutationsLength; ++i) {
-        // add new column
-        for (size_t j = 0; j < permutationsLength; ++j) {
-            permutations[j].insert(0, 1, sortedLetters[j]);
-        }
-
-        // sort permutations
-        std::stable_sort(permutations, permutations + permutationsLength);
-    }
-
-    // get count of the same letters before the letter[index]
-    size_t count = 0;
-    for (size_t i = 0; i < index; i++) {
-        if (sortedLetters[i] == sortedLetters[index]) count++;
-    }
-
-    return permutations[index];
-}
-
-// Ariphmetical encoding
-
-std::wstring CodecAFMTxtOnly::EncodeAFM(const std::wstring& str) const
-{
-    auto encode = [](const std::wstring& str) {
-        // initialize sorted alphabet and sorted frequencies
-        wchar_t* alphabet = Alphabet(str);
-        int size = wcslen(alphabet);
-        std::pair<wchar_t, double>* frequencies = CharFrequencyPairs(alphabet, size, str);
-        std::sort(frequencies, frequencies + size);
-
-        // leave in frequencies only 2 characters after the decimal point
-        // (for correct decoding)
-        for (int i = 0; i < size; ++i) {
-            frequencies[i].second = ((int)(frequencies[i].second * 100)) / 100.0;
-        }
-
-        // inicialize segments
-        //// (array of bounds points from 0 to 1)
-        double* segments = new double[size + 1]{ 0 };
-        for (int i = 1; i < size; ++i) {
-            segments[i] = frequencies[i - 1].second + segments[i - 1];
-        }
-        segments[size] = 1;
-
-        // encode
-        double leftBound = 0, rightBound = 1, distance;
-        for (wchar_t c : str) {
-            int index = GetIndexInSorted(frequencies, size, c);
-            distance = rightBound - leftBound;
-            rightBound = leftBound + segments[index + 1] * distance;
-            leftBound = leftBound + segments[index] * distance;
-        }
-
-        // make result
-        std::wstring result = std::to_wstring(size) + L'\n';
-        for (int i = 0; i < size; ++i) {
-            result.push_back(frequencies[i].first);
-        }
-        result.push_back('\n'); 
-        for (int i = 0; i < size; ++i){
-            result += std::to_wstring((int8_t)((frequencies[i].second) * 100)) + L' ';
-        }
-        result.push_back('\n');
-
-        double resultValue = (rightBound + leftBound) / 2;
-        // leave only 9 digits after the decimal point
-        //// cause int value can store any number with 9 digits 
-        result += std::to_wstring((int)(resultValue * 1000000000));
-
-        delete[] alphabet; delete[] frequencies; delete[] segments;
-        return result;
-    };
-
-    std::wstring result = L"";
-    size_t size = str.size();
-
-    // write count of sequences
-    size_t countOfSequences = (size % 9 == 0) ? (size / 9) : (size / 9 + 1);
-    result += std::to_wstring(countOfSequences) + L'\n';
-
-    // encode every 9 chars
-    size_t i = 0;
-    while (i + 9 <= size) {
-        result += encode(str.substr(i, 9)) + L'\n';
-        i += 9;
-    }
-    // handle the rest of the string
-    if (i != size) {
-        result += encode(str.substr(i, size - i)) + L'\n';
-        result += std::to_wstring(size - i) + L'\n'; // fix last count of characters (cause it lower that 9)
-    } else {
-        result += std::to_wstring(9) + L'\n';
-    }
-
-    return result;
-}
-
-// Huffman encoding
-
-std::wstring CodecHUFTxtOnly::EncodeHUF(const std::wstring& str) const
-{
-    // initialize alphabet and char-frequency pairs sorted by char
-    wchar_t* alphabet = Alphabet(str);
-    int alphabetSize = wcslen(alphabet);
-    std::pair<wchar_t, double>* charFrequencies = CharFrequencyPairs(alphabet, alphabetSize, str);
-    // sort by frequencies
-    std::sort(charFrequencies, charFrequencies + alphabetSize, [](const std::pair<wchar_t, double>& a, const std::pair<wchar_t, double>& b) {
-        return a.second < b.second;
-    });
-
-    // build Huffman tree
-    HuffmanTreeTest tree = BuildHuffmanTreeTest(charFrequencies, alphabetSize);
-    // get Huffman codes
-    std::vector<std::pair<wchar_t, std::wstring>> huffmanCodes = GetHuffmanCodes(tree, alphabetSize);
-    // sort codes by chars
-    std::sort(huffmanCodes.begin(), huffmanCodes.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
-    // make map of codes for fast access
-    std::map<wchar_t, std::wstring> huffmanCodesMap(huffmanCodes.begin(), huffmanCodes.end());
-
-    // make result string
-    std::wstring encodedStr;
-    // write alphabet size
-    encodedStr += std::to_wstring(alphabetSize) + L'\n';
-    // write alphabet
-    for (int i = 0; i < alphabetSize; ++i) {
-        encodedStr += huffmanCodes[i].first;
-    }
-    encodedStr += L'\n';
-    // write huffman codes
-    for (int i = 0; i < alphabetSize; ++i) {
-        encodedStr += (huffmanCodes[i].second) + L' ';
-    }
-    encodedStr += L'\n';
-    // write length of the string
-    encodedStr += std::to_wstring(str.size()) + L'\n';
-    // write encoded string
-    for (size_t i = 0; i < str.size(); ++i) {
-        encodedStr += huffmanCodesMap[str[i]];
-    }
-
-    delete[] alphabet; delete[] charFrequencies;
     return encodedStr;
 }
 
- */
+
+
+
+
+
+
+struct LZ77_match {
+    int offset;
+    int length;
+    char c;
+    LZ77_match(int offset, int length, char c) : offset(offset), length(length), c(c) {}
+};
+
+// return start and length of the maximum prefix ({0, 0} if not found)
+std::pair<int, int> findMaximumPrefix(const std::string inputStr, int stringPointer, const int WINDOW_SIZE, const int BUFFER_SIZE) {
+    std::pair<int, int> prefixData = { 0, 0 };
+    std::string prefix; prefix.reserve(BUFFER_SIZE);
+
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+        prefix.push_back(inputStr[stringPointer + i]);
+        size_t prefixStart;
+
+        // find prefix in the window
+        if (stringPointer - WINDOW_SIZE < 0) {
+            prefixStart = inputStr.substr(0, stringPointer).find(prefix);
+        } else {
+            prefixStart = inputStr.substr(stringPointer - WINDOW_SIZE, stringPointer).find(prefix);
+        }
+
+        if (prefixStart == std::string::npos) {
+            return prefixData;
+        } else {
+            prefixData = { static_cast<int>(stringPointer - prefixStart), static_cast<int>(prefix.size()) };
+        }
+    }
+
+    return prefixData;
+}
+
+std::string EncodeLZ77_toString(const std::string& inputStr) {
+    const int WINDOW_SIZE = 10;
+    const int BUFFER_SIZE = 5; // maximum length of prefix
+    int stringPointer = 0; // point at the first character in the string after hte window 
+
+    // get all the matches
+    std::vector<LZ77_match> matches;
+    std::string buffer; buffer.reserve(BUFFER_SIZE);
+    while (stringPointer < inputStr.size())
+    {
+        std::pair<int, int> prefixData = findMaximumPrefix(inputStr, stringPointer, WINDOW_SIZE, BUFFER_SIZE);
+        if (prefixData.first == 0 && prefixData.second == 0) {
+            matches.push_back(LZ77_match(0, 0, inputStr[stringPointer]));
+            ++stringPointer;
+        } else {
+            matches.push_back(LZ77_match(prefixData.first, prefixData.second, '\0'));
+            stringPointer += prefixData.second;
+        }
+    }
+
+    //return matches;
+    // encode matches
+    std::string encodedStr;
+    encodedStr += std::to_string(inputStr.size()) + "\n";
+    for (int i = 0; i < matches.size(); ++i) {
+        encodedStr += std::to_string(matches[i].offset) + " ";
+    }
+    encodedStr += "\n";
+    for (int i = 0; i < matches.size(); ++i) {
+        encodedStr += std::to_string(matches[i].length) + " ";
+    }
+    encodedStr += "\n";
+    for (int i = 0; i < matches.size(); ++i) {
+        encodedStr.push_back(matches[i].c);
+    }
+    return encodedStr;
+}
+
 // END IMPLEMENTATION
