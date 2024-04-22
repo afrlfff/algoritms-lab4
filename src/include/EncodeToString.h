@@ -318,19 +318,19 @@ struct LZ77_match {
 };
 
 // return start and length of the maximum prefix ({0, 0} if not found)
-std::pair<int, int> findMaximumPrefix(const std::string inputStr, int stringPointer, const int WINDOW_SIZE, const int BUFFER_SIZE) {
+std::pair<int, int> findMaximumPrefix(const std::string inputStr, int stringPointer, const int SEARCH_BUFFER_SIZE, const int lOOKAHEAD_BUFFER_SIZE) {
     std::pair<int, int> prefixData = { 0, 0 };
-    std::string prefix; prefix.reserve(BUFFER_SIZE);
+    std::string prefix; prefix.reserve(lOOKAHEAD_BUFFER_SIZE);
 
-    for (int i = 0; i < BUFFER_SIZE; ++i) {
+    for (int i = 0; i < lOOKAHEAD_BUFFER_SIZE; ++i) {
         prefix.push_back(inputStr[stringPointer + i]);
         size_t prefixStart;
 
         // find prefix in the window
-        if (stringPointer - WINDOW_SIZE < 0) {
+        if (stringPointer - SEARCH_BUFFER_SIZE < 0) {
             prefixStart = inputStr.substr(0, stringPointer).find(prefix);
         } else {
-            prefixStart = inputStr.substr(stringPointer - WINDOW_SIZE, stringPointer).find(prefix);
+            prefixStart = inputStr.substr(stringPointer - SEARCH_BUFFER_SIZE, stringPointer).find(prefix);
         }
 
         if (prefixStart == std::string::npos) {
@@ -344,16 +344,15 @@ std::pair<int, int> findMaximumPrefix(const std::string inputStr, int stringPoin
 }
 
 std::string EncodeLZ77_toString(const std::string& inputStr) {
-    const int WINDOW_SIZE = 10;
-    const int BUFFER_SIZE = 5; // maximum length of prefix
+    const int SEARCH_BUFFER_SIZE = 32000;
+    const int lOOKAHEAD_BUFFER_SIZE = 256; // maximum length of prefix
     int stringPointer = 0; // point at the first character in the string after hte window 
 
     // get all the matches
     std::vector<LZ77_match> matches;
-    std::string buffer; buffer.reserve(BUFFER_SIZE);
     while (stringPointer < inputStr.size())
     {
-        std::pair<int, int> prefixData = findMaximumPrefix(inputStr, stringPointer, WINDOW_SIZE, BUFFER_SIZE);
+        std::pair<int, int> prefixData = findMaximumPrefix(inputStr, stringPointer, SEARCH_BUFFER_SIZE, lOOKAHEAD_BUFFER_SIZE);
         if (prefixData.first == 0 && prefixData.second == 0) {
             matches.push_back(LZ77_match(0, 0, inputStr[stringPointer]));
             ++stringPointer;
