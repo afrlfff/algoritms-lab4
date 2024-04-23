@@ -12,6 +12,8 @@
 #include <cstdint> // for int8_t, int16_t ...
 #include <utility> // for std::pair
 
+#include "SuffixArray.h"
+
 // Text tools
 
 std::string GetAlphabet(const std::string& str)
@@ -289,7 +291,7 @@ std::string EncodeHA_toString(const std::string& inputStr)
     return encodedStr;
 }
 
-std::string EncodeBWT_toString(const std::string& inputStr)
+std::string EncodeBWTNaive_toString(const std::string& inputStr)
 {
     std::vector<std::string> permutations; permutations.reserve(inputStr.size());
     for (size_t i = 0; i < inputStr.size(); ++i) {
@@ -304,7 +306,17 @@ std::string EncodeBWT_toString(const std::string& inputStr)
     return encodedStr;
 }
 
+std::string EncodeBWT_toString(const std::string& inputStr)
+{
+    std::string encodedStr; encodedStr.reserve(inputStr.size());
 
+    std::vector<int> suffixArray = buildSuffixArray(inputStr);
+    for (size_t i = 0; i < suffixArray.size(); ++i) {
+        size_t ind = (suffixArray[i] > 0) ? (suffixArray[i] - 1) : (inputStr.size() - 1);
+        encodedStr.push_back(inputStr[ind]);
+    }
+    return encodedStr;
+}
 
 
 
