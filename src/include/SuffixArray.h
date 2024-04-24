@@ -7,10 +7,10 @@
 
 struct Suffix
 {
-	size_t index; // To store original index
-	long long int rank1; // To store ranks and next rank pair
-    long long int rank2; // To store ranks and next rank pair
-    Suffix(size_t index, long long int rank1, long long int rank2): index(index), rank1(rank1), rank2(rank2) {}
+	unsigned int index; // To store original index
+	int rank1; // To store ranks and next rank pair
+    int rank2; // To store ranks and next rank pair
+    Suffix(unsigned int index, int rank1, int rank2): index(index), rank1(rank1), rank2(rank2) {}
 };
 
 // comparsion
@@ -21,7 +21,7 @@ int cmp(const Suffix& a, const Suffix& b)
 }
 
 // main function to use
-std::vector<size_t> buildSuffixArray(std::string txt)
+std::vector<unsigned int> buildSuffixArray(std::u32string txt)
 {
 	std::vector<Suffix> suffixes; suffixes.reserve(txt.size());
 
@@ -33,8 +33,8 @@ std::vector<size_t> buildSuffixArray(std::string txt)
 	std::vector<int> ind(txt.size(), 0);    
 	for (size_t k = 4; k < 2*txt.size(); k = k*2)
 	{
-		long long rank = 0;
-		long long prev_rank = suffixes[0].rank1;
+		int rank = 0;
+		int prev_rank = suffixes[0].rank1;
 		suffixes[0].rank1 = rank;
 		ind[suffixes[0].index] = 0;
 
@@ -52,7 +52,7 @@ std::vector<size_t> buildSuffixArray(std::string txt)
 			ind[suffixes[i].index] = i;
 		}
 
-		size_t nextindex;
+		unsigned int nextindex;
 		for (size_t i = 0; i < txt.size(); ++i) {
 			nextindex = suffixes[i].index + k/2;
 			suffixes[i].rank2 = (nextindex < txt.size()) ?
@@ -62,7 +62,7 @@ std::vector<size_t> buildSuffixArray(std::string txt)
 		std::sort(suffixes.begin(), suffixes.end(), cmp);
 	}
 
-	std::vector<size_t> suffixArr; suffixArr.reserve(txt.size());
+	std::vector<unsigned int> suffixArr; suffixArr.reserve(txt.size());
 	for (size_t i = 0; i < txt.size(); ++i)
 		suffixArr.push_back(suffixes[i].index);
 
