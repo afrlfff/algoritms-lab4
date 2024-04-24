@@ -310,7 +310,7 @@ std::string EncodeBWT_toString(const std::string& inputStr)
 {
     std::string encodedStr; encodedStr.reserve(inputStr.size());
 
-    std::vector<int> suffixArray = buildSuffixArray(inputStr);
+    std::vector<unsigned int> suffixArray = buildSuffixArray(inputStr);
     for (size_t i = 0; i < suffixArray.size(); ++i) {
         size_t ind = (suffixArray[i] > 0) ? (suffixArray[i] - 1) : (inputStr.size() - 1);
         encodedStr.push_back(inputStr[ind]);
