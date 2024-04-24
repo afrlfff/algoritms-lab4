@@ -31,13 +31,13 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    struct dataRLE {
+    struct data {
         uint64_t strLength;
         std::queue<std::pair<int8_t, std::u32string>> encodedStr;
-        dataRLE(size_t _strLength, std::queue<std::pair<int8_t, std::u32string>> _encodedStr) : strLength(_strLength), encodedStr(_encodedStr) {}
+        data(size_t _strLength, std::queue<std::pair<int8_t, std::u32string>> _encodedStr) : strLength(_strLength), encodedStr(_encodedStr) {}
     };
 
-    dataRLE GetDataRLE(const std::u32string& inputStr) const;
+    data GetData(const std::u32string& inputStr) const;
     std::string DecodeRLE(FILE* inputFile) const;
 };
 
@@ -49,17 +49,17 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    struct dataMTF {
+    struct data {
         uint32_t alphabetLength;
         std::u32string alphabet;
         uint64_t strLength;
         std::vector<uint32_t> codes;
-        dataMTF(uint32_t _alphabetLength, std::u32string _alphabet, uint64_t _strLength, std::vector<uint32_t> _codes) : alphabetLength(_alphabetLength), alphabet(_alphabet), strLength(_strLength), codes(_codes) {}
+        data(uint32_t _alphabetLength, std::u32string _alphabet, uint64_t _strLength, std::vector<uint32_t> _codes) : alphabetLength(_alphabetLength), alphabet(_alphabet), strLength(_strLength), codes(_codes) {}
     };
 
     void AlphabetShift(std::u32string& alphabet, const uint16_t& alphabetLength, const uint32_t& index) const;
     const uint32_t GetIndex(const std::u32string& alphabet, const uint16_t alphabetLength, const char32_t c) const;
-    dataMTF GetDataMTF(const std::u32string& inputStr) const;
+    data GetData(const std::u32string& inputStr) const;
     std::string DecodeMTF(FILE* inputFile) const;
 };
 
@@ -71,21 +71,21 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    struct dataAC_local {
+    struct data_local {
         uint8_t alphabetLength;
         std::u32string alphabet;
         std::vector<uint8_t> frequencies;
         uint64_t resultValue;
-        dataAC_local(uint8_t _alphabetLength, std::u32string _alphabet, std::vector<uint8_t> _frequencies, uint64_t _resultValue) : alphabetLength(_alphabetLength), alphabet(_alphabet), frequencies(_frequencies), resultValue(_resultValue) {}
+        data_local(uint8_t _alphabetLength, std::u32string _alphabet, std::vector<uint8_t> _frequencies, uint64_t _resultValue) : alphabetLength(_alphabetLength), alphabet(_alphabet), frequencies(_frequencies), resultValue(_resultValue) {}
     };
-    struct dataAC {
+    struct data {
         uint64_t strLength;
-        std::queue<dataAC_local> queueLocalData;
-        dataAC(const uint64_t& _strLength, const std::queue<dataAC_local>& _queueLocalData) : strLength(_strLength), queueLocalData(_queueLocalData) {}
+        std::queue<data_local> queueLocalData;
+        data(const uint64_t& _strLength, const std::queue<data_local>& _queueLocalData) : strLength(_strLength), queueLocalData(_queueLocalData) {}
     };
 
-    dataAC_local GetDataAC_local(const std::u32string& inputStr) const;
-    dataAC GetDataAC(const std::u32string& inputStr) const;
+    data_local Getdata_local(const std::u32string& inputStr) const;
+    data GetData(const std::u32string& inputStr) const;
     std::string DecodeAC(FILE* inputFile) const;
 };
 
@@ -97,32 +97,53 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    struct dataHA_local {
+    struct data_local {
         uint8_t alphabetLength;
         std::u32string alphabet;
         std::map<char32_t, std::string> huffmanCodesMap;
         std::string encodedStr;
-        dataHA_local(const uint16_t& _alphabetLength, const std::u32string& _alphabet, const std::map<char32_t, std::string>& _huffmanCodesMap, const std::string& _encodedStr) : alphabetLength(_alphabetLength), alphabet(_alphabet), huffmanCodesMap(_huffmanCodesMap), encodedStr(_encodedStr) {}
+        data_local(const uint16_t& _alphabetLength, const std::u32string& _alphabet, const std::map<char32_t, std::string>& _huffmanCodesMap, const std::string& _encodedStr) : alphabetLength(_alphabetLength), alphabet(_alphabet), huffmanCodesMap(_huffmanCodesMap), encodedStr(_encodedStr) {}
     };
-    struct dataHA {
-        std::queue<dataHA_local> queueLocalData;
-        dataHA(const std::queue<dataHA_local>& _queueLocalData) : queueLocalData(_queueLocalData) {}
+    struct data {
+        std::queue<data_local> queueLocalData;
+        data(const std::queue<data_local>& _queueLocalData) : queueLocalData(_queueLocalData) {}
     };
 
     uint8_t GetNumberFromBinaryString(const std::string& binaryString) const;
     std::string GetBinaryStringFromNumber(const uint8_t& number, const uint8_t& codeLength) const;
 
-    dataHA GetDataHA(const std::u32string& inputStr) const;
+    data GetData(const std::u32string& inputStr) const;
     std::u32string DecodeHA(FILE* inputFile) const;
 };
 
+// Burrows-Wheeler transform
+class CodecBWT : public FileCodec
+{
+public:
+    CodecBWT() = default;
+    void Encode(const char* inputPath, const char* outputPath) const override;
+    void Decode(const char* inputPath, const char* outputPath) const override;
+protected:
+    struct data_local {
+        uint32_t index;
+        std::u32string encodedStr;
+        data_local(const uint32_t& _index, const std::u32string& _encodedStr) : index(_index), encodedStr(_encodedStr) {}
+    };
+    struct data {
+        std::queue<data_local> queueLocalData;
+        data(const std::queue<data_local>& _queueLocalData) : queueLocalData(_queueLocalData) {}
+    };
+
+    data GetData(const std::u32string& inputStr) const;
+    std::string DecodeBWT(FILE* inputFile) const;
+};
 
 // START IMPLEMENTATION
 
 // ==================================================================================
 // Run-length encoding
 
-CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
+CodecRLE::data CodecRLE::GetData(const std::u32string& inputStr) const
 {
     std::queue<std::pair<int8_t, std::u32string>> encodedStr;
 
@@ -217,7 +238,7 @@ CodecRLE::dataRLE CodecRLE::GetDataRLE(const std::u32string& inputStr) const
         encodedStr.push(std::make_pair(-countUnique, uniqueSeq));
     }
 
-    return dataRLE(inputStr.size(), encodedStr);
+    return data(inputStr.size(), encodedStr);
 }
 
 std::string CodecRLE::DecodeRLE(FILE* inputFile) const
@@ -263,7 +284,7 @@ void CodecRLE::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    dataRLE encodingData = GetDataRLE(FileUtils::ReadContentToU32String(inputPath));
+    data encodingData = GetData(FileUtils::ReadContentToU32String(inputPath));
     FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
     while (!encodingData.encodedStr.empty()) {
         auto elem = encodingData.encodedStr.front();
@@ -312,7 +333,7 @@ const uint32_t CodecMTF::GetIndex(const std::u32string& alphabet, const uint16_t
     return 0; // assume that this will never happen
 }
 
-CodecMTF::dataMTF CodecMTF::GetDataMTF(const std::u32string& inputStr) const
+CodecMTF::data CodecMTF::GetData(const std::u32string& inputStr) const
 {
     std::u32string alphabet = GetAlphabet(inputStr);
     uint32_t alphabetLength = alphabet.size();
@@ -328,7 +349,7 @@ CodecMTF::dataMTF CodecMTF::GetDataMTF(const std::u32string& inputStr) const
     }
 
     std::sort(alphabet.begin(), alphabet.end());
-    return dataMTF(alphabetLength, alphabet, strLength, codes);
+    return data(alphabetLength, alphabet, strLength, codes);
 }
 
 std::string CodecMTF::DecodeMTF(FILE* inputFile) const
@@ -374,7 +395,7 @@ void CodecMTF::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    dataMTF encodingData = GetDataMTF(FileUtils::ReadContentToU32String(inputPath));
+    data encodingData = GetData(FileUtils::ReadContentToU32String(inputPath));
     FileUtils::AppendValueBinary(outputFile, encodingData.alphabetLength);
     CodecUTF8::EncodeString32ToBinaryFile(outputFile, encodingData.alphabet);
     FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
@@ -410,7 +431,7 @@ void CodecMTF::Decode(const char* inputPath, const char* outputPath) const
 // =================================================================================================
 // Ariphmetical encoding
 
-CodecAC::dataAC_local CodecAC::GetDataAC_local(const std::u32string& inputStr) const
+CodecAC::data_local CodecAC::Getdata_local(const std::u32string& inputStr) const
 {
     // initialize sorted alphabet and sorted frequencies
     std::u32string alphabet = GetAlphabet(inputStr);
@@ -470,14 +491,14 @@ CodecAC::dataAC_local CodecAC::GetDataAC_local(const std::u32string& inputStr) c
         frequencies.push_back(static_cast<uint8_t>(charFrequenciesVector[i].second * 100));
     }
 
-    return dataAC_local(alphabetLength, alphabetLocal, frequencies, resultValue);
+    return data_local(alphabetLength, alphabetLocal, frequencies, resultValue);
 }
 
-CodecAC::dataAC CodecAC::GetDataAC(const std::u32string& inputStr) const
+CodecAC::data CodecAC::GetData(const std::u32string& inputStr) const
 {
     // maximum number of character in the string to make encoding 
     const uint8_t numChars = 13;
-    std::queue<dataAC_local> queueLocalData; 
+    std::queue<data_local> queueLocalData; 
 
     uint64_t strLength = inputStr.size();
     // number of sequences to encode
@@ -486,15 +507,15 @@ CodecAC::dataAC CodecAC::GetDataAC(const std::u32string& inputStr) const
     // encode every <numChars> characters
     uint64_t CountOfSeq = 0;
     while (CountOfSeq < numberOfFullSequences) {
-        queueLocalData.push(GetDataAC_local(inputStr.substr(CountOfSeq * numChars, numChars)));
+        queueLocalData.push(Getdata_local(inputStr.substr(CountOfSeq * numChars, numChars)));
         ++CountOfSeq;
     }
     // handle the rest of the string
     if (strLength % numChars != 0) {
-        queueLocalData.push(GetDataAC_local(inputStr.substr(numberOfFullSequences * numChars, strLength % numChars)));
+        queueLocalData.push(Getdata_local(inputStr.substr(numberOfFullSequences * numChars, strLength % numChars)));
     }
 
-    return dataAC(strLength, queueLocalData);
+    return data(strLength, queueLocalData);
 }
 
 std::string CodecAC::DecodeAC(FILE* inputFile) const
@@ -607,7 +628,7 @@ void CodecAC::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    dataAC encodingData = GetDataAC(FileUtils::ReadContentToU32String(inputPath));
+    data encodingData = GetData(FileUtils::ReadContentToU32String(inputPath));
     FileUtils::AppendValueBinary(outputFile, encodingData.strLength);
 
     while (!encodingData.queueLocalData.empty()) {
@@ -662,9 +683,9 @@ std::string CodecHA::GetBinaryStringFromNumber(const uint8_t& number, const uint
     return result;
 } 
 
-CodecHA::dataHA CodecHA::GetDataHA(const std::u32string& inputStr) const
+CodecHA::data CodecHA::GetData(const std::u32string& inputStr) const
 {
-    std::queue<dataHA_local> queueLocalData;
+    std::queue<data_local> queueLocalData;
 
     const size_t strLengthToStart = 50;
     const size_t strLengthToAppend = 10;
@@ -678,7 +699,7 @@ CodecHA::dataHA CodecHA::GetDataHA(const std::u32string& inputStr) const
     std::vector<std::pair<char32_t, double>> charFrequenciesVector;
 
 
-    // get all the dataHA_local
+    // get all the data_local
     while (stringPointer < inputStr.size()) {
         // inicialization
         localString = inputStr.substr(stringPointer, strLengthToStart);
@@ -747,7 +768,7 @@ CodecHA::dataHA CodecHA::GetDataHA(const std::u32string& inputStr) const
         for (size_t i = 0; i < localString.size(); ++i) {
             encodedStr += huffmanCodesMap[localString[i]];
         }
-        queueLocalData.push(dataHA_local(alphabetSet.size(), std::u32string(alphabetSet.begin(), alphabetSet.end()), huffmanCodesMap, encodedStr));
+        queueLocalData.push(data_local(alphabetSet.size(), std::u32string(alphabetSet.begin(), alphabetSet.end()), huffmanCodesMap, encodedStr));
         
         // print to see compression ratio of huffman result sequence
         //std::cout << "local part: " << localString.size() << " -> "
@@ -757,7 +778,7 @@ CodecHA::dataHA CodecHA::GetDataHA(const std::u32string& inputStr) const
         stringPointer += localString.size();
     }
     
-    return dataHA(queueLocalData);
+    return data(queueLocalData);
 }
 
 std::u32string CodecHA::DecodeHA(FILE* inputFile) const
@@ -824,11 +845,11 @@ void CodecHA::Encode(const char* inputPath, const char* outputPath) const
 {
     FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
 
-    dataHA encodingData = GetDataHA(FileUtils::ReadContentToU32String(inputPath));
+    data encodingData = GetData(FileUtils::ReadContentToU32String(inputPath));
     
     FileUtils::AppendValueBinary(outputFile, static_cast<uint64_t>(encodingData.queueLocalData.size()));
     while (!encodingData.queueLocalData.empty()) {
-        dataHA_local dataLocal = encodingData.queueLocalData.front();
+        data_local dataLocal = encodingData.queueLocalData.front();
 
         FileUtils::AppendValueBinary(outputFile, dataLocal.alphabetLength);
         CodecUTF8::EncodeString32ToBinaryFile(outputFile, dataLocal.alphabet);
@@ -881,160 +902,37 @@ void CodecHA::Decode(const char* inputPath, const char* outputPath) const
 }
 
 // ==================================================================================
+// Burrow-Wheeler transform
 
-/*
-// ==================================================================================
-// Burrows-Wheeler transform
-
-void CodecBWT::EncodeBWT(const std::wstring& str, const std::string& outputPath) const
+CodecBWT::data CodecBWT::GetData(const std::u32string& inputStr) const
 {
-    MyFile file(outputPath, "w");
+    // will encode every 10 Mb (10 * 1024 * 1024) of characaters
+    // then about 500 Mb of operative memory will be used to build suffixArray
+    const size_t MAX_COUNT_OF_CHARS = 10 * 1024 * 1024;
 
-    uint64_t permutationsLength = str.size();
-    std::wstring* permutations = new std::wstring[permutationsLength];
+    uint64_t localDataCount = inputStr.size() / MAX_COUNT_OF_CHARS;
+    std::queue<data_local> queueLocalData;
 
-    // generate permutations
-    permutations[0] = str;
-    for (uint64_t i = 1; i < permutationsLength; i++) {
-        permutations[i] = str.substr(i, permutationsLength - i) + str.substr(0, i);
-    }
-    
-    // sort permutations
-    std::sort(permutations, permutations + permutationsLength);
+    std::u32string currentStr; currentStr.reserve(MAX_COUNT_OF_CHARS);
+    for (uint64_t i = 0; i < localDataCount; ++i) {
+        uint32_t index;
+        std::u32string encodedStr; encodedStr.reserve(MAX_COUNT_OF_CHARS);
 
-    // write result
-    file.AppendUint64Binary(permutationsLength); // write length of string
-    int64_t indexOfOrignal;
-    for (uint64_t i = 0; i < permutationsLength; ++i) {
-        file.AppendWideCharBinary(permutations[i][permutationsLength - 1]);
-        if (permutations[i] == str) indexOfOrignal = i;
-    }
-    file.AppendUint64Binary(indexOfOrignal);
-
-    delete[] permutations;
-}
-
-std::wstring CodecBWT::DecodeBWT(const std::string& inputPath) const
-{
-    // START READ METADATA
-    MyFile file(inputPath, "r");
-
-    uint64_t permutationsLength = file.ReadUint64Binary();
-    // get sorted letters
-    wchar_t* sortedLetters = new wchar_t[permutationsLength];
-    for (uint64_t i = 0; i < permutationsLength; ++i) {
-        sortedLetters[i] = file.ReadWideCharBinary();
-    }
-    uint64_t indexOfOriginal = file.ReadUint64Binary();
-
-    // END READ METADATA
-
-    // get permutations
-    std::wstring* permutations = new std::wstring[permutationsLength];
-    for (uint64_t i = 0; i < permutationsLength; ++i) {
-        // add new column
-        for (uint64_t j = 0; j < permutationsLength; ++j) {
-            permutations[j].insert(0, 1, sortedLetters[j]);
+        currentStr = inputStr.substr(i * MAX_COUNT_OF_CHARS, MAX_COUNT_OF_CHARS);
+        std::vector<unsigned int> suffixArray = buildSuffixArray(currentStr);
+        for (size_t i = 0; i < suffixArray.size(); ++i) {
+            size_t ind = (suffixArray[i] > 0) ? (suffixArray[i] - 1) : (currentStr.size() - 1);
+            encodedStr.push_back(currentStr[ind]);
+            if (suffixArray[i] == 0) {
+                index = i;
+            }
         }
 
-        // sort permutations
-        //// stable sort is necessary to save order
-        std::stable_sort(permutations, permutations + permutationsLength);
+        queueLocalData.push(data_local(index, encodedStr));
     }
 
-    // get count of the same letters before the letter[indexOfOriginal]
-    uint64_t count = 0;
-    for (int64_t i = 0; i < indexOfOriginal; ++i) {
-        if (sortedLetters[i] == sortedLetters[indexOfOriginal]) ++count;
-    }
-
-    delete[] sortedLetters;
-    return permutations[indexOfOriginal];
-}
-
-void CodecBWT::Encode(const std::string& inputPath, const std::string& outputPath) const
-{
-    MyFile file(inputPath, "r");
-    std::wstring inputStr = file.ReadWideContent();
-    EncodeBWT(inputStr, outputPath);
-}
-
-void CodecBWT::Decode(const std::string& inputPath, const std::string& outputPath) const
-{
-    std::wstring result = DecodeBWT(inputPath);
-    MyFile file(outputPath, "w");
-    file.WriteWideContent(result);
+    return data(queueLocalData);
 }
 
 
-// Huffman encoding
-
-void CodecHUF::EncodeHUF(const std::wstring& str, const std::string& outputPath) const
-{
-    MyFile file(outputPath, "w");
-
-    // initialize alphabet and char-frequency pairs sorted by char
-    wchar_t* alphabet = Alphabet(str);
-    int alphabetSize = wcslen(alphabet);
-    std::pair<wchar_t, double>* charFrequencies = CharFrequencyPairs(alphabet, alphabetSize, str);
-    // sort by frequencies
-    std::sort(charFrequencies, charFrequencies + alphabetSize, [](const std::pair<wchar_t, double>& a, const std::pair<wchar_t, double>& b) {
-        return a.second < b.second;
-    });
-
-    // build Huffman tree
-    HuffmanTree tree = BuildHuffmanTree(charFrequencies, alphabetSize);
-    // get Huffman codes
-    std::vector<std::pair<wchar_t, std::string>> huffmanCodes = GetHuffmanCodes(tree, alphabetSize);
-    // sort codes by chars
-    std::sort(huffmanCodes.begin(), huffmanCodes.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
-    // make map of codes for fast access
-    std::map<wchar_t, std::string> huffmanCodesMap(huffmanCodes.begin(), huffmanCodes.end());
-
-    // write result
-    // write alphabet size
-    file.AppendInt32Binary(alphabetSize);
-    // write alphabet
-    for (int i = 0; i < alphabetSize; ++i) {
-        file.AppendWideCharBinary(huffmanCodes[i].first);
-    }
-    // write huffman codes
-    for (int i = 0; i < alphabetSize; ++i) {
-        for (int j = 0; j < huffmanCodes[i].second.size(); ++j) {
-            file.AppendCharBinary(huffmanCodes[i].second[j]);
-        }
-        file.AppendCharBinary(' ');
-    }
-    // write length of the string
-    file.AppendInt64Binary(str.size());
-    // write encoded string
-    for (size_t i = 0; i < str.size(); ++i) {
-        encodedStr += huffmanCodesMap[str[i]];
-    }
-
-    delete[] alphabet; delete[] charFrequencies;
-}
-
-std::wstring CodecHUF::DecodeHUF(const std::string& inputPath) const
-{
-
-    return L"";
-}
-
-void CodecHUF::Encode(const std::string& inputPath, const std::string& outputPath) const
-{
-    MyFile file(inputPath, "r");
-    std::wstring inputStr = file.ReadWideContent();
-    EncodeHUF(inputStr, outputPath);
-}
-
-void CodecHUF::Decode(const std::string& inputPath, const std::string& outputPath) const
-{
-    std::wstring result = DecodeHUF(inputPath);
-    MyFile file(outputPath, "w");
-    file.WriteWideContent(result);
-}
- */
 // END IMPLEMENTATION
