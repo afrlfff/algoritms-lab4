@@ -9,9 +9,9 @@
 
 #include "FileUtils.h"
 #include "CodecUTF8.h"
-
 #include "TextTools.h"
 #include "HuffmanTree.h"
+#include "SuffixArray.h"
 
 
 class FileCodec
@@ -124,18 +124,14 @@ public:
     void Encode(const char* inputPath, const char* outputPath) const override;
     void Decode(const char* inputPath, const char* outputPath) const override;
 protected:
-    struct data_local {
+    struct data {
         uint32_t index;
         std::u32string encodedStr;
-        data_local(const uint32_t& _index, const std::u32string& _encodedStr) : index(_index), encodedStr(_encodedStr) {}
-    };
-    struct data {
-        std::queue<data_local> queueLocalData;
-        data(const std::queue<data_local>& _queueLocalData) : queueLocalData(_queueLocalData) {}
+        data(const uint32_t& _index, const std::u32string& _encodedStr) : index(_index), encodedStr(_encodedStr) {}
     };
 
     data GetData(const std::u32string& inputStr) const;
-    std::string DecodeBWT(FILE* inputFile) const;
+    std::u32string DecodeBWT(FILE* inputFile) const;
 };
 
 // START IMPLEMENTATION
@@ -906,33 +902,72 @@ void CodecHA::Decode(const char* inputPath, const char* outputPath) const
 
 CodecBWT::data CodecBWT::GetData(const std::u32string& inputStr) const
 {
-    // will encode every 10 Mb (10 * 1024 * 1024) of characaters
-    // then about 500 Mb of operative memory will be used to build suffixArray
-    const size_t MAX_COUNT_OF_CHARS = 10 * 1024 * 1024;
+    // NOTE:
+    // will encode every 10 * 1024 * 1024 (10 Mb in the worst case, else even more Mb)
+    // of characaters of inputStr.
+    // then about 100 Mb of RAM will be used
+    // except of the queueLocalData which use 4 * |text| in the worst case,
+    // where |text| is the size of the file with the input string
+    // so enwik8 will use about 500mb of RAM
+    //const size_t MAX_COUNT_OF_CHARS = 10 * 1024 * 1024;
 
-    uint64_t localDataCount = inputStr.size() / MAX_COUNT_OF_CHARS;
-    std::queue<data_local> queueLocalData;
-
-    std::u32string currentStr; currentStr.reserve(MAX_COUNT_OF_CHARS);
-    for (uint64_t i = 0; i < localDataCount; ++i) {
-        uint32_t index;
-        std::u32string encodedStr; encodedStr.reserve(MAX_COUNT_OF_CHARS);
-
-        currentStr = inputStr.substr(i * MAX_COUNT_OF_CHARS, MAX_COUNT_OF_CHARS);
-        std::vector<unsigned int> suffixArray = buildSuffixArray(currentStr);
-        for (size_t i = 0; i < suffixArray.size(); ++i) {
-            size_t ind = (suffixArray[i] > 0) ? (suffixArray[i] - 1) : (currentStr.size() - 1);
-            encodedStr.push_back(currentStr[ind]);
-            if (suffixArray[i] == 0) {
-                index = i;
-            }
+    uint32_t index;
+    std::u32string encodedStr; encodedStr.reserve(inputStr.size());
+    std::vector<unsigned int> suffixArray = buildSuffixArray(inputStr);
+    for (size_t i = 0; i < suffixArray.size(); ++i) {
+        size_t ind = (suffixArray[i] > 0) ? (suffixArray[i] - 1) : (inputStr.size() - 1);
+        encodedStr.push_back(inputStr[ind]);
+        if (suffixArray[i] == 0) {
+            index = i;
         }
-
-        queueLocalData.push(data_local(index, encodedStr));
     }
 
-    return data(queueLocalData);
+    return data(index, encodedStr);
 }
 
+std::u32string CodecBWT::DecodeBWT(FILE* inputFile) const
+{
+    uint32_t index = FileUtils::ReadValueBinary<uint32_t>(inputFile);
+    uint64_t strSize = FileUtils::ReadValueBinary<uint64_t>(inputFile);
+    std::u32string inputStr = CodecUTF8::DecodeString32FromBinaryFile(inputFile, strSize);
+
+    std::vector<std::pair<char32_t, unsigned int>> P; P.reserve(inputStr.size());
+    for (uint64_t i = 0; i < strSize; ++i) {
+        P.push_back(std::make_pair(inputStr[i], i));
+    }
+    std::sort(P.begin(), P.end());
+
+    std::u32string decodedStr; decodedStr.reserve(inputStr.size());
+    for (size_t i = 0; i < inputStr.size(); ++i) {
+        index = P[index].second;
+        decodedStr.push_back(inputStr[index]);
+    }
+
+    return decodedStr;
+}
+
+void CodecBWT::Encode(const char* inputPath, const char* outputPath) const
+{
+    FILE* outputFile = FileUtils::OpenFileBinaryWrite(outputPath);
+
+    data encodingData = GetData(FileUtils::ReadContentToU32String(inputPath));
+    FileUtils::AppendValueBinary(outputFile, encodingData.index);
+    FileUtils::AppendValueBinary(outputFile, static_cast<uint64_t>(encodingData.encodedStr.size()));
+    CodecUTF8::EncodeString32ToBinaryFile(outputFile, encodingData.encodedStr);
+
+    FileUtils::CloseFile(outputFile);
+}
+
+void CodecBWT::Decode(const char* inputPath, const char* outputPath) const
+{
+    FILE* inputFile = FileUtils::OpenFileBinaryRead(inputPath);
+    std::ofstream outputFile = FileUtils::OpenFile<std::ofstream>(outputPath);
+
+    std::string decodedStr = CodecUTF8::EncodeString32ToString(DecodeBWT(inputFile));
+    FileUtils::AppendStr(outputFile, decodedStr);
+
+    FileUtils::CloseFile(outputFile);
+    FileUtils::CloseFile(inputFile);
+}
 
 // END IMPLEMENTATION
