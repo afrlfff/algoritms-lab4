@@ -1,2 +1,0 @@
-compile main.cpp file:
-    g++ main.cpp -o ..\bin\main.exe
