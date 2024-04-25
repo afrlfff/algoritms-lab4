@@ -306,9 +306,9 @@ std::string EncodeBWTNaive_toString(const std::string& inputStr)
     return encodedStr;
 }
 
-std::string EncodeBWT_toString(const std::string& inputStr)
+std::u32string EncodeBWT_toString(const std::u32string& inputStr)
 {
-    std::string encodedStr; encodedStr.reserve(inputStr.size());
+    std::u32string encodedStr; encodedStr.reserve(inputStr.size());
 
     std::vector<unsigned int> suffixArray = buildSuffixArray(inputStr);
     for (size_t i = 0; i < suffixArray.size(); ++i) {
@@ -317,6 +317,23 @@ std::string EncodeBWT_toString(const std::string& inputStr)
     }
     return encodedStr;
 }
+
+std::u32string DecodeBWT_toString(const std::u32string& inputStr, size_t index)
+{
+    std::vector<std::pair<char32_t, size_t>> P; P.reserve(inputStr.size());
+    for (size_t i = 0; i < inputStr.size(); ++i) {
+        P.push_back(std::make_pair(inputStr[i], i));
+    }
+    std::sort(P.begin(), P.end());
+
+    std::u32string decodedStr; decodedStr.reserve(inputStr.size());
+    for (size_t i = 0; i < inputStr.size(); ++i) {
+        index = P[index].second;
+        decodedStr.push_back(inputStr[index]);
+    }
+
+    return decodedStr;
+} 
 
 
 
