@@ -17,17 +17,17 @@ public:
     static std::string DecodeString32FromBinaryFileToString(FILE* file, const size_t& size);
     static std::string DecodeChar32FromBinaryFileToString(FILE* file);
 
+    // base utf-8 encode function
+    static std::string EncodeChar32ToString(const char32_t& code_point);
 private:
     CodecUTF8() = default;
     ~CodecUTF8() = default;
-
-    // base utf-8 encode function
-    static void EncodeChar32ToString(std::string& str, const char32_t& code_point);
 };
 
 // START IMPLEMENTATION
 
-void CodecUTF8::EncodeChar32ToString(std::string& str, const char32_t& code_point) {
+std::string CodecUTF8::EncodeChar32ToString(const char32_t& code_point) {
+    std::string str;
     if (code_point <= 0x007F) {
         char ch = static_cast<char>(code_point);
          
@@ -59,13 +59,15 @@ void CodecUTF8::EncodeChar32ToString(std::string& str, const char32_t& code_poin
         str.push_back(b3);
         str.push_back(b4);
     }
+
+    return str;
 }
 
 std::string CodecUTF8::EncodeString32ToString(const std::u32string& str)
 {
     std::string result;
     for (char32_t code : str) {
-        EncodeChar32ToString(result, code);
+        result = EncodeChar32ToString(code);
     }
     return result;
 }
@@ -121,7 +123,7 @@ std::string CodecUTF8::DecodeString32FromBinaryFileToString(FILE* file, const si
     std::u32string result = DecodeString32FromBinaryFile(file, size);
     std::string resultStr;
     for (char32_t code : result) {
-        EncodeChar32ToString(resultStr, code);
+        resultStr = EncodeChar32ToString(code);
     }
  
     return resultStr;
