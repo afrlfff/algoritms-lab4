@@ -61,6 +61,7 @@ std::vector<unsigned int> buildSuffixArray(std::u32string txt)
 
 		std::sort(suffixes.begin(), suffixes.end(), cmp);
 	}
+	ind.clear();
 
 	std::vector<unsigned int> suffixArr; suffixArr.reserve(txt.size());
 	for (size_t i = 0; i < txt.size(); ++i)

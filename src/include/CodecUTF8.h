@@ -5,6 +5,11 @@
 #include <cstdint>
 #include "FileUtils.h"
 
+/**
+ * UTF-8 codec
+ * to encode strings of 4 byte characters to binary file with efficient memory usage
+ * to decode binary file to those 4 byte strings 
+*/
 class CodecUTF8 {
 public:
     static std::string EncodeString32ToString(const std::u32string& str);
