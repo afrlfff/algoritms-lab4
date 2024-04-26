@@ -24,7 +24,7 @@ protected:
         std::u32string alphabet;
         std::map<char32_t, std::string> huffmanCodesMap;
         std::string encodedStr;
-        data_local(const uint16_t& _alphabetLength, const std::u32string& _alphabet, const std::map<char32_t, std::string>& _huffmanCodesMap, const std::string& _encodedStr) : alphabetLength(_alphabetLength), alphabet(_alphabet), huffmanCodesMap(_huffmanCodesMap), encodedStr(_encodedStr) {}
+        data_local(const uint8_t& _alphabetLength, const std::u32string& _alphabet, const std::map<char32_t, std::string>& _huffmanCodesMap, const std::string& _encodedStr) : alphabetLength(_alphabetLength), alphabet(_alphabet), huffmanCodesMap(_huffmanCodesMap), encodedStr(_encodedStr) {}
     };
     struct data {
         std::queue<data_local> queueLocalData;
@@ -79,6 +79,8 @@ CodecHA::data CodecHA::GetData(const std::u32string& inputStr)
     std::map<char32_t, size_t> charCountsMap;
     std::vector<std::pair<char32_t, double>> charFrequenciesVector;
 
+    double frequency; // temporary variable
+
 
     // get all the data_local
     while (stringPointer < inputStr.size()) {
@@ -88,7 +90,9 @@ CodecHA::data CodecHA::GetData(const std::u32string& inputStr)
         charCountsMap = GetCharCountsMap(std::u32string(alphabetSet.begin(), alphabetSet.end()), alphabetSet.size(), localString);
         charFrequenciesVector = std::vector<std::pair<char32_t, double>>(charCountsMap.begin(), charCountsMap.end());
         for (size_t i = 0; i < charFrequenciesVector.size(); ++i) {
-            charFrequenciesVector[i].second = static_cast<double>(charFrequenciesVector[i].second) / alphabetSet.size();
+            frequency = charFrequenciesVector[i].second / static_cast<double>(alphabetSet.size());
+            // leave in frequencies only 2 digits after the decimal point
+            charFrequenciesVector[i].second = std::trunc((frequency * 100.0)) / 100.0;
         }
         // sort vector by frequencies
         std::sort(charFrequenciesVector.begin(), charFrequenciesVector.end(), [](const auto& a, const auto& b) {
@@ -101,7 +105,7 @@ CodecHA::data CodecHA::GetData(const std::u32string& inputStr)
             HuffmanTree tree = BuildHuffmanTree(charFrequenciesVector, alphabetSet.size());
             maxHuffmanCodeLengthCounter = tree.GetHeight();
             if ((maxHuffmanCodeLengthCounter > maxHuffmanCodeLength) || 
-                (alphabetSet.size() > 256)) {
+                (alphabetSet.size() > 100)) {
                 // reset data to the last modification where maxHuffmanCodeLengthCounter <= maxHuffmanCodeLength
 
                 localString.erase(localString.size() - strLengthToAppend); // remove last 10 characters
@@ -109,7 +113,9 @@ CodecHA::data CodecHA::GetData(const std::u32string& inputStr)
                 charCountsMap = GetCharCountsMap(std::u32string(alphabetSet.begin(), alphabetSet.end()), alphabetSet.size(), localString);
                 charFrequenciesVector = std::vector<std::pair<char32_t, double>>(charCountsMap.begin(), charCountsMap.end());
                 for (size_t i = 0; i < charFrequenciesVector.size(); ++i) {
-                    charFrequenciesVector[i].second = static_cast<double>(charFrequenciesVector[i].second) / alphabetSet.size();
+                    frequency = charFrequenciesVector[i].second / static_cast<double>(alphabetSet.size());
+                    // leave in frequencies only 2 digits after the decimal point
+                    charFrequenciesVector[i].second = std::trunc((frequency * 100.0)) / 100.0;
                 }
                 // sort vector by frequencies
                 std::sort(charFrequenciesVector.begin(), charFrequenciesVector.end(), [](const auto& a, const auto& b) {
@@ -132,7 +138,9 @@ CodecHA::data CodecHA::GetData(const std::u32string& inputStr)
             // get charFrequenciesVector
             charFrequenciesVector = std::vector<std::pair<char32_t, double>>(charCountsMap.begin(), charCountsMap.end());
             for (size_t i = 0; i < charFrequenciesVector.size(); ++i) {
-                charFrequenciesVector[i].second = static_cast<double>(charFrequenciesVector[i].second) / alphabetSet.size();
+                frequency = charFrequenciesVector[i].second / static_cast<double>(alphabetSet.size());
+                // leave in frequencies only 2 digits after the decimal point
+                charFrequenciesVector[i].second = std::trunc((frequency * 100.0)) / 100.0;
             }
             // sort vector by frequencies
             std::sort(charFrequenciesVector.begin(), charFrequenciesVector.end(), [](const auto& a, const auto& b) {
@@ -181,7 +189,7 @@ std::u32string CodecHA::DecodeHA(FILE* inputFile)
         }
         // read string of encoded huffman codes
         std::string allHuffmanCodes;
-        for (size_t i = 0; i < allHuffmanCodesSize - allHuffmanCodesSize % 8; i += 8) {
+        for (uint16_t j = 0; j < allHuffmanCodesSize - allHuffmanCodesSize % 8; j += 8) {
             allHuffmanCodes += GetBinaryStringFromNumber(FileUtils::ReadValueBinary<uint8_t>(inputFile), 8);
         }
         if (allHuffmanCodesSize % 8 != 0) {
@@ -190,7 +198,7 @@ std::u32string CodecHA::DecodeHA(FILE* inputFile)
         // get huffman codes map
         std::map<std::string, char32_t> huffmanCodesMap;
         size_t stringPointer = 0;
-        for (uint8_t j = 0; j < alphabetLength; ++j) {
+        for (size_t j = 0; j < alphabet.size(); ++j) {
             huffmanCodesMap[allHuffmanCodes.substr(stringPointer, lengthsOfCodes[j] - '0')] = alphabet[j];
             stringPointer += lengthsOfCodes[j] - '0';
         }
