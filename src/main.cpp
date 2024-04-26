@@ -10,9 +10,12 @@
 #include "include/EncodingDecodingRatios.h"
 
 // temporary
+#include <chrono>
 #include "include/CodecTestPrototypes.h"
 #include "include/CodecRLE.h"
 #include "include/CodecMTF.h"
+#include "include/CodecAC.h"
+#include "include/CodecHA.h"
 
 namespace fs = std::filesystem;
 const fs::path INPUT_DIR = fs::current_path() / "..\\input";
@@ -25,7 +28,7 @@ void MakeGraphics(const std::string& codecName);
 template <typename CodecType>
 void EncodeAll();
 template <typename CodecType>
-void DecodeAll(FileCodec& codec);
+void DecodeAll();
 
 
 int main()
@@ -35,16 +38,16 @@ int main()
 
     // TEST CODE
 
-    //EncodeAll(codec);
-    //DecodeAll(codec);
+    auto start = std::chrono::steady_clock::now();
+    CodecHA::Encode("..\\input\\txt\\russian_text_1mb.txt", "..\\output\\encoded\\russian_text_1mb_encoded.bin");
+    CodecHA::Decode("..\\output\\encoded\\russian_text_1mb_encoded.bin", "..\\output\\decoded\\russian_text_1mb_decoded.txt");
+    auto end = std::chrono::steady_clock::now();
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    std::cout << "Elapsed time: " << elapsed.count() << " ms" << std::endl;
+
     //MakeResultsFile();
-
-    //std::string text = "abcd";
-    //std::string encodedText = EncodeHA_toString(text);
-    //std::cout << encodedText << std::endl;
-
-    CodecMTF::Encode("..\\input\\txt\\temp.txt", "..\\output\\encoded\\temp_encoded.bin");
-    CodecMTF::Decode("..\\output\\encoded\\temp_encoded.bin", "..\\output\\decoded\\temp_decoded.txt");
 
     return 0;
 }
